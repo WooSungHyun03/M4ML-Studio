@@ -1,6 +1,7 @@
 import base64
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -54,6 +55,21 @@ def fixture_scene(root):
 
 
 class StateAndAPITests(unittest.TestCase):
+    def test_cancel_before_worker_pid_is_recorded_is_durable(self):
+        job = self.store.new_job(self.id, "colmap", {})
+        self.assertFalse(self.store.job(job)["pid"])
+        response = self.client.post(self.url + "/cancel", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.store.job(job)["cancel_requested"])
+        # Dispatch creates this directory before Popen; emulate that paused boundary.
+        (self.root / "logs").mkdir()
+        result = subprocess.run(
+            [sys.executable, "-m", "studio.worker", job],
+            env={**os.environ, "STUDIO_DATA": str(self.store.root)},
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(self.store.job(job)["state"], "cancelled", result.stderr)
+
     def test_cancel_does_not_signal_an_unrelated_process_after_pid_reuse(self):
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
         try:

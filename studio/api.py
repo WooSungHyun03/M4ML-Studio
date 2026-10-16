@@ -1533,13 +1533,14 @@ def cancel(project_id: str):
             project_id, lambda doc: doc["live_prompt"].update(status="cancelled")
         )
     job = store.active(project_id)
-    if job and job["pid"]:
+    if job:
         store.job_update(
             job["id"], cancel_requested=1, message="작업을 중지하고 있습니다."
         )
         from studio.process import signal_owned_worker
 
-        signal_owned_worker(job["pid"], job["id"])
+        if job["pid"]:
+            signal_owned_worker(job["pid"], job["id"])
     return {"message": "중지 요청을 보냈습니다. 종료 상태와 로그를 확인하세요."}
 
 
