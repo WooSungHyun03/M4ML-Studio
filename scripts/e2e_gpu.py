@@ -33,8 +33,13 @@ ap.add_argument("--fixture", type=Path, required=True)
 ap.add_argument("--output", type=Path, required=True)
 ap.add_argument("--iterations", type=int, default=6000)
 ap.add_argument("--mesh-res", type=int, default=512, choices=(256, 512, 1024))
+ap.add_argument("--skip-pause", action="store_true", help="설치 후 짧은 연결 시험용; 체크포인트 재개를 검증하지 않음")
 ap.add_argument("--only", default="ABC")
 a = ap.parse_args()
+if not a.only or set(a.only) - set("ABC"):
+    ap.error("--only must select at least one of A, B, C")
+if "A" in a.only and not a.skip_pause and a.iterations < 3000:
+    ap.error("Mode A pause/resume needs at least3000 iterations; use --skip-pause for an explicit short smoke")
 c = httpx.Client(base_url=a.url, timeout=600)
 H = {"x-studio-token": c.get("/api/session").json()["token"]}
 report = {"started": time.strftime("%Y-%m-%d %H:%M:%S"), "url": a.url}
@@ -151,6 +156,12 @@ def train_with_pause(pid):
     out = {}
     post(f"/projects/{pid}/jobs/train", {"gpu": 0, "iterations": a.iterations, "mesh_res": a.mesh_res, "confirmed": True})
     t0 = time.monotonic()
+    if a.skip_pause:
+        d = wait(pid, "mesh")
+        return {"scope": "explicit training/mesh smoke; checkpoint pause/resume not tested",
+                "iterations": a.iterations, "mesh_res": a.mesh_res,
+                "mesh": d["mesh"], "downloads": verify_downloads(pid, d),
+                "seconds": round(time.monotonic() - t0, 1)}, d
     while True:  # wait past the first checkpoint (2,500) and pause
         d = doc(pid)
         j = running(d)
