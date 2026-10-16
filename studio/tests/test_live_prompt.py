@@ -126,3 +126,22 @@ class PromptQueueTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(self.client.get(self.url).status_code, 200)
         self.assertEqual(self.store.get(self.id)["live_prompt"]["prompt_revision"], 0)
+
+class PreviewRetentionTests(unittest.TestCase):
+    def test_superseded_predictions_cannot_delete_the_published_recovery_mask(self):
+        import tempfile
+        from pathlib import Path
+        from studio.live_prompt import cleanup_previews
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); folder=root/'live/session'
+            for revision in range(1,7):
+                item=folder/f'{revision:06d}'
+                item.mkdir(parents=True)
+                (item/'mask.png').write_bytes(fixtures.png(255,mode='L'))
+            published=folder/'000001/mask.png'; original=published.read_bytes()
+            cleanup_previews(root,folder,str(published.relative_to(root)))
+            self.assertEqual(published.read_bytes(),original)
+            self.assertEqual({p.name for p in folder.iterdir()},{'000001','000004','000005','000006'})
+            # Only after another real result is published may the old file expire.
+            cleanup_previews(root,folder,'live/session/000006/mask.png')
+            self.assertEqual({p.name for p in folder.iterdir()},{'000004','000005','000006'})

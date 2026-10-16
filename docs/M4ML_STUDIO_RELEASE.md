@@ -47,4 +47,4 @@
 
 ## 0.3 검증 판정 (2026-10-16)
 
-위 체크는 TEST_REPORT와37개 RELEASE_STATUS의 명시된 시험 범위에 한한다. 실제 Ubuntu24.04 신규 UID/HOME 설치·desktop entry의 Exec 실행·GPU A/B/C·CPU Viewer·53+4 회귀·전체 browser가 통과했다.1366/1920 화면과 자동 사용 흐름은 검증했으나 외부 처음 사용자 연구 및 GNOME 메뉴 마우스 조작은 미실시다. 라이선스 고지는 수집했지만 corresponding-source/relinking·결합 배포·법률 검토는 미완료이므로 공개·상업 배포는 BLOCKED다. 내부 연구·평가용 번들만 생성하며 공개 업로드하지 않는다.
+위 체크는 TEST_REPORT와37개 RELEASE_STATUS의 명시된 시험 범위에 한한다. 실제 Ubuntu24.04 신규 UID/HOME 설치·desktop entry의 Exec 실행·GPU A/B/C·CPU Viewer·54+4 회귀·전체 browser가 통과했다.1366/1920 화면과 자동 사용 흐름은 검증했으나 외부 처음 사용자 연구 및 GNOME 메뉴 마우스 조작은 미실시다. 라이선스 고지는 수집했지만 corresponding-source/relinking·결합 배포·법률 검토는 미완료이므로 공개·상업 배포는 BLOCKED다. 내부 연구·평가용 번들만 생성하며 공개 업로드하지 않는다.

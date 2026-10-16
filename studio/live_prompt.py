@@ -33,6 +33,15 @@ def matches(doc, request):
     )
 
 
+def cleanup_previews(root, folder, published_path):
+    """Keep the published recovery mask even after many superseded predictions."""
+    protected = (root / published_path).resolve() if published_path else None
+    for old in sorted(p for p in folder.iterdir() if p.is_dir())[:-3]:
+        if protected is not None and protected.is_relative_to(old.resolve()):
+            continue
+        shutil.rmtree(old, ignore_errors=True)
+
+
 def run_live(store, project_id, request, prepare):
     """Run one revision through the persistent session and publish if still current."""
     from studio import segmentation_session
@@ -72,8 +81,7 @@ def run_live(store, project_id, request, prepare):
     store.update(project_id, finish)
     # Keep only the latest few revision folders of this session (bounded disk use).
     try:
-        for old in sorted(p for p in folder.iterdir() if p.is_dir())[:-3]:
-            shutil.rmtree(old, ignore_errors=True)
+        cleanup_previews(root, folder, store.get(project_id).get("preview", {}).get("path"))
     except OSError:
         pass
     return bool(published)
