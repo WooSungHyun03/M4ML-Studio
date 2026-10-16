@@ -60,3 +60,15 @@ python3 scripts/package_release.py --internal-research
 기존Docker이미지태그0.2.0은Ubuntu24.04시스템준비/Miniforge24.11.3-2만재사용한다. 새container·UID1101·새HOME·빈Python환경에0.3을설치했고개발checkout/HOME을mount하지않았다. release·officialcheckpoint·사진fixture만read-onlymount했다. 시스템준비패키지는 python3/git/curl/ca-certificates/build-essential/gcc-11/g++-11/colmap/libgl1/libglib2.0-0/libegl1/libgomp1/xdg-utils/desktop-file-utils/bzip2였다. 시스템COLMAP이있어도내장origin/hash/실행을검사했다. 실측150Python버전제약은wheel해시잠금이아니다.
 
 동일물리RTX4080의DockerGPUpassthrough이다. GNOME메뉴마우스클릭·다른물리GPU/driver·Ubuntu22.04/glibc2.35·FUSE/AppImage·외부신규사용자연구·전체스크린리더인증은NOT TESTED이다. source/runtime라이선스법률검토와공개재배포는BLOCKED이다. 수밀·완전형상·연구벤치마크품질보장없음.
+
+## 최종 고정 압축본의 직접 재검증 (2026-10-16)
+
+최종 SHA256은 `909b1137317f33e8fa47081f968318130a19d6691d73c51cefd40e5014208362`다.103589769 bytes/2052 파일의 모든 manifest hash·실행 권한·데이터/가중치 제외를 다시 검사했다. 공식 SAM Python 모듈 경로의 `datasets/`를 사용자 데이터로 오인한 최초 감사 규칙은 archive 최상단 데이터 경로 검사로 바로잡았으며, 실제 사용자 데이터가 발견된 것은 아니다. SHA 검사 CWD 실수도 올바른 release 폴더에서 재실행해 해결했다. 원래 실패 이력은 `v03-final-archive-audit-first-failure.log`에 남겼다.
+
+동일 압축본을 새 Ubuntu 사용자 환경에 다시 설치하고 실제 A/B/C 각100회 GPU 학습·256 TSDF까지 완료했다. `v03-clean-exact-final-ABC.json`: A40141정점/66102삼각형, B49668/84252, C49738/84381. 모든 RGB/GLB 오차5.96e-8. A의 특징점 추출과 매칭에서 실제 COLMAP GPU 사용도 관측했다. 이전 candidate 수치와 혼합하지 않는다.
+
+**동일 최종 설치본에 대한 전체 브라우저 E2E도 PASS/console0** (`ui-e2e-v03-exact-release/`): 새16사진 입력부터 클릭/연속/zoom/전환/전파/실제 수정·검토/100학습/256mesh/Viewer까지 수행했다. 나머지 source/storage 변경을 포함한 post-install Python54 PASS와4 frontend PASS를 구분해 기록했다.
+
+현재 사용자에도 정식 설치 경로/실제 `.desktop`을 등록하고 **gtk-launch를 통한 실제 데스크톱 항목 활성화**에 성공했다. 메뉴를 마우스로 누른 시험은 아니다. 일반 앱은8765이며 기존30K 프로젝트가 모든 단계 완료로 복원됐다. 원본 PLY 다운로드 SHA908958e0...은 유지되고, 수정된 GLB/기본 컬러 뷰어와 실제 조작/다운로드 시험은 console0이다. 원본 native CUDA forward/backward/optimizer는 같은0.8145585656으로 PASS했다. 모델 경로 설정은 사용자 XDG에만 저장되며 번들에 개발 PC 경로/가중치를 넣지 않았다.
+
+최종 상세 QA는 아카이브 옆 `M4ML-Studio-0.3.0-QA.json`이다. 이 문서의 최종 QA 추가 기록은 고정 아카이브 이후 저장되는 감사 기록이며 아카이브 자체를 다시 변경하지 않는다. 일반 앱만 남기고 테스트 서버/컨테이너는 안전하게 종료하되 데이터·런타임은 보존한다. 공개 배포 BLOCKED 판정은 변하지 않는다.
