@@ -495,3 +495,12 @@ details.advanced > summary { cursor: pointer; color: var(--tx-2); font-size: 12.
 .lightbox-hint { text-align: center; padding: 8px; font-size: 11.5px; color: #8d8c94; }
 .grid:focus { outline: none; }
 .flag.err { color: var(--err); }
+
+/* ---- live Gaussian render ---- */
+.live-surface { position: absolute; inset: 0; cursor: grab; touch-action: none; user-select: none; }
+.live-surface:active { cursor: grabbing; }
+.live-surface img { width: 100%; height: 100%; display: block; object-fit: fill; pointer-events: none; image-rendering: auto; }
+.live-frame[data-state="rendering"] .live-overlay { display: none; }
+.live-overlay { z-index: 3; }
+.live-overlay .btn { pointer-events: auto; }
+.vp-views .num { padding: 0 6px; color: #c9c8ce; font-size: 11.5px; }

@@ -42,5 +42,19 @@
     "diff_surfel_rasterization": "e0ed0207b3e0669960cfad70852200a4a5847f61",
     "simple_knn": "86710c2d4b46680c02301765dd79e465819c8f19",
     "glm": "5c46b9c07008ae65cb81ab79cd677ecc1934b903"
+  },
+  "sibr_remote_viewer": {
+    "url": "https://github.com/RongLiu-Leo/Gaussian-Splatting-Monitor.git",
+    "revision": "2b6190c5c1c35b477a70da09dc9b720395ea6293",
+    "subdirectory": "SIBR_viewers",
+    "patches": [
+      {
+        "path": "patches/sibr/0001-ubuntu24-embree4-ffmpeg6.patch",
+        "sha256": "e3cf44b1abcba9b79d5320e4c8e81d8ad8889ac3ecbc3b505765ff287c7c5e32"
+      }
+    ],
+    "build": "scripts/build_sibr.sh",
+    "runtime": "runtime/sibr",
+    "role": "optional external viewer; the in-editor viewport uses the same renderer protocol"
   }
 }

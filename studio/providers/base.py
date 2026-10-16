@@ -233,3 +233,39 @@ class ExportProvider(Provider):
 
     def requires_gpu(self, request):
         return False
+
+
+class RenderingProvider(Provider):
+    """Interactive renderer for a trained radiance-field model (the "실시간 렌더" viewport).
+
+    Lifecycle (driven by ``studio.live_render`` in the API process, never by the UI):
+    ``locate_model`` → ``server_command`` (initialize + load_model in a GPU child process)
+    → ``connect`` → repeated ``render`` (update_camera + resize + render in one request)
+    → close client / terminate process (unload_model + shutdown). ``modes`` lists only the
+    outputs the engine really produces; ``external_viewer_command`` is optional.
+    """
+
+    capability = "rendering"
+
+    def locate_model(self, root: Path, project: dict, iteration: Optional[int] = None) -> dict:
+        """Validated model description: paths, iterations, chosen iteration, camera metadata."""
+        raise NotImplementedError
+
+    def server_command(self, model: dict) -> list[str]:
+        """argv (run with the GPU runtime interpreter) that loads the model and prints
+        one JSON line ``{"ready": true, "port": ...}`` or ``{"ready": false, "error": ...}``."""
+        raise NotImplementedError
+
+    def connect(self, port: int):
+        raise NotImplementedError
+
+    def render(self, client, camera: dict) -> tuple[bytes, dict]:
+        """``camera``: view (16 column-major OpenGL floats), fovy (rad), width, height, mode.
+        Returns raw RGB bytes (width*height*3) and engine metrics."""
+        raise NotImplementedError
+
+    def modes(self, server_items: list[str]) -> list[dict]:
+        raise NotImplementedError
+
+    def external_viewer_command(self, port: int, model: dict) -> Optional[list[str]]:
+        return None

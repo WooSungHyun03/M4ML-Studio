@@ -334,3 +334,43 @@ Request: "Professional 3D Desktop Editor 전면 개선". Everything below was ru
 - **Supported / verified:** Ubuntu 24.04 x86_64, X11 session, RTX 4080 16 GB, driver 580.173.02. Other configurations are not certified.
 - **Licences:** public / commercial release stays **BLOCKED** (SuiteSparse GPL/LGPL obligations, CUDA redistribution terms, Qt LGPL notice review, original noncommercial terms).
 - **Servers:** test server 8769 (`STUDIO_DATA=evidence/folder-detect/data`) is stopped at the end of this cycle. The user's normal 8765 app was not touched.
+
+### M4ML 0.5 live Gaussian viewer cycle (Claude, 2026-10-16) — 실시간 렌더 | 메시
+Request: "2DGS SIBR Gaussian Viewer 통합". Full record: `docs/GAUSSIAN_VIEWER_INTEGRATION.md`, ADR-021, TEST_REPORT section "실시간 렌더".
+
+- **Phase 1: analysis.** The remote SIBR app is a protocol display client; frames come from the original Object-Aware `render()`. Run on real data, the original `view.py` turned out unusable for an editor:
+  - crash on disconnect;
+  - 100% CPU spin;
+  - single client;
+  - `Scene` reads training images.
+- **Phase 2: SIBR build.** Gaussian-Splatting-Monitor `2b6190c` + `patches/sibr/0001` (Embree 4, FFmpeg ≥ 5, GCC 13) builds on Ubuntu 24.04 without sudo. `scripts/build_sibr.sh` stages `runtime/sibr` (5.4 MB, `BUILD_INFO.json`; system libraries not bundled; ldd 0 missing here).
+- **Phase 3: real rendering.**
+  - SIBR ↔ original `view.py` shows real 2DGS frames.
+  - M4ML renderer process `studio/gaussian_render_server.py` is pixel-identical to `view.py` for all six items, plus ObjectMark.
+  - SIBR also attaches to it.
+- **Phase 4–5: editor.**
+  - 3D 모델 workspace gets an `실시간 렌더 | 메시` switch.
+  - `GaussianViewer.tsx`: orbit/pan/zoom shared with the mesh viewer, 화면 맞춤, 시점 초기화, training-camera stepping, 5 real modes, fullscreen, PNG screenshot, live states.
+  - Inspector shows the result properties.
+  - Advanced: external SIBR window. Engine names appear only in 고급 정보.
+- **Phase 6: automation.**
+  - The trained result is recognised on training completion and when reopening a project. Verified with a real 3000-iteration training run in this session.
+  - The latest iteration is used by default; others are selectable when present.
+  - Gaussian PLY is validated (mesh PLY rejected), and cameras are checked against the scene.
+- **Phase 7: stability.**
+  - Per-GPU lock shared with jobs and selection; jobs evict the viewer (verified); start refused during jobs (409, verified).
+  - Project switch replaces the renderer (verified).
+  - Closing the viewer frees VRAM (5.5 GiB peak → 1815 MiB).
+  - Backend SIGKILL → renderer gone in 147 ms; window close → no processes.
+  - Measured: 78 fps / 12 ms (720p), 54.5 fps / 17.5 ms (1080p), desktop drag 62 fps / 16 ms.
+- **Phase 8: tests, package, docs.**
+  - Python 76/76, frontend 4/4, tsc/build.
+  - `ui_live_render_e2e` 21/21, `desktop_live_render_qa` 9/9 (real window), `ui_editor_e2e` 28/28.
+  - 0.5.0 package (`release/M4ML-Studio-0.5.0-linux-x86_64.tar.gz`, `--internal-research`, includes `runtime/sibr`) installed in a scratch home; the renderer ran from the installed folder with identical frames.
+- **Incident:** the first desktop QA used global XTest input while the M4ML window was behind another application window; the drag/scroll events reached that window (a text selection appeared). The XTest input path was removed. Desktop QA now uses page-scoped DevTools input only.
+- **Not tested:** Wayland; other GPUs, drivers and Ubuntu versions; a clean-container `setup.sh` for 0.5.0; SIBR on a machine missing the Ubuntu libraries.
+- **Release:** public/commercial release remains BLOCKED (SIBR / GS non-commercial terms in addition to the earlier items).
+- **Next session (quality harness):** audit §6/§13 of `GAUSSIAN_VIEWER_INTEGRATION.md`. Candidates:
+  - WebSocket/streamed transport if HiDPI still frames (~150 ms) matter;
+  - optional auth handshake for the loopback renderer;
+  - Wayland verification.

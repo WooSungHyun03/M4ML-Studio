@@ -88,6 +88,14 @@ def main():
                     raise SystemExit("런타임 변경 후 라이선스 인벤토리를 다시 생성하세요.")
             engine = json.loads((ROOT / "runtime/colmap/BUILD_INFO.json").read_text())
             shutil.copytree(ROOT / "runtime/colmap", app / "runtime/colmap", symlinks=True)
+        # Optional external Gaussian viewer (scripts/build_sibr.sh): SIBR's own libraries only,
+        # verified against BUILD_INFO.json; Ubuntu system libraries are not bundled.
+        if (ROOT / "runtime/sibr/bin/SIBR_remoteGaussian_app").is_file():
+            sibr = json.loads((ROOT / "runtime/sibr/BUILD_INFO.json").read_text())
+            for name, sha in sibr["bundled"].items():
+                if digest(ROOT / "runtime/sibr/bin" / name) != sha:
+                    raise SystemExit("runtime/sibr 파일이 BUILD_INFO.json과 다릅니다. ./scripts/build_sibr.sh를 다시 실행하세요.")
+            shutil.copytree(ROOT / "runtime/sibr", app / "runtime/sibr", symlinks=True)
         for rel in ["submodules/diff-surfel-rasterization", "submodules/simple-knn"]:
             shutil.copytree(ROOT / rel, app / rel, ignore=ignored)
         # Archive actual official source, not the submodule's machine-local .git link.

@@ -1,0 +1,184 @@
+diff --git a/SIBR_viewers/cmake/linux/dependencies.cmake b/SIBR_viewers/cmake/linux/dependencies.cmake
+index a7854bb..5538916 100644
+--- a/SIBR_viewers/cmake/linux/dependencies.cmake
++++ b/SIBR_viewers/cmake/linux/dependencies.cmake
+@@ -124,7 +124,7 @@ sibr_addlibrary(
+ 
+ # CLUSTER
+ #find_package(embree 3.0 REQUIRED PATHS "/data/graphdeco/share/embree/usr/local/lib64/cmake/" )
+-find_package(embree 3.0 )
++find_package(embree 4.0 )
+ 
+ ###################
+ ## Find eigen3
+diff --git a/SIBR_viewers/src/core/raycaster/Raycaster.cpp b/SIBR_viewers/src/core/raycaster/Raycaster.cpp
+index 1733636..b3a1f7d 100644
+--- a/SIBR_viewers/src/core/raycaster/Raycaster.cpp
++++ b/SIBR_viewers/src/core/raycaster/Raycaster.cpp
+@@ -208,9 +208,7 @@ namespace sibr
+ 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
+ 		else
+ 		{
+-			RTCIntersectContext context;
+-			rtcInitIntersectContext(&context);
+-			rtcOccluded1(*_scene.get(), &context, &ray);
++			rtcOccluded1(*_scene.get(), &ray);
+ 		}
+ 		return ray.tfar < 0.0f;
+ 	}
+@@ -237,9 +235,7 @@ namespace sibr
+ 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
+ 		else
+ 		{
+-			RTCIntersectContext context;
+-			rtcInitIntersectContext(&context);
+-			rtcOccluded8(valid8, *_scene.get(), &context, &ray);
++			rtcOccluded8(valid8, *_scene.get(), &ray);
+ 		}
+ 
+ 		std::array<bool, 8> res;
+@@ -272,9 +268,7 @@ namespace sibr
+ 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
+ 		else
+ 		{
+-			RTCIntersectContext context;
+-			rtcInitIntersectContext(&context);
+-			rtcIntersect1(*_scene.get(), &context, &rh);
++			rtcIntersect1(*_scene.get(), &rh);
+ 			rh.hit.Ng_x = -rh.hit.Ng_x; // EMBREE_FIXME: only correct for triangles,quads, and subdivision surfaces
+ 			rh.hit.Ng_y = -rh.hit.Ng_y;
+ 			rh.hit.Ng_z = -rh.hit.Ng_z;
+@@ -319,9 +313,7 @@ namespace sibr
+ 			SIBR_ERR << "cannot initialize embree, failed cast rays." << std::endl;
+ 		else
+ 		{
+-			RTCIntersectContext context;
+-			rtcInitIntersectContext(&context);
+-			rtcIntersect8(valid8.data(), *_scene.get(), &context, &rh);
++			rtcIntersect8(valid8.data(), *_scene.get(), &rh);
+ 		}
+ 
+ 		std::array<RayHit, 8> res;
+diff --git a/SIBR_viewers/src/core/raycaster/Raycaster.hpp b/SIBR_viewers/src/core/raycaster/Raycaster.hpp
+index d11b85f..2be29d8 100644
+--- a/SIBR_viewers/src/core/raycaster/Raycaster.hpp
++++ b/SIBR_viewers/src/core/raycaster/Raycaster.hpp
+@@ -13,8 +13,8 @@
+ #pragma once
+ 
+ # pragma warning(push, 0)
+-#  include <embree3/rtcore.h>
+-#  include <embree3/rtcore_ray.h>
++#  include <embree4/rtcore.h>
++#  include <embree4/rtcore_ray.h>
+ #  include <xmmintrin.h>	// functions for setting the control register
+ #  include <pmmintrin.h>	// functions for setting the control register
+ # pragma warning(pop)
+diff --git a/SIBR_viewers/src/core/video/FFmpegVideoEncoder.cpp b/SIBR_viewers/src/core/video/FFmpegVideoEncoder.cpp
+index d908531..94b841c 100644
+--- a/SIBR_viewers/src/core/video/FFmpegVideoEncoder.cpp
++++ b/SIBR_viewers/src/core/video/FFmpegVideoEncoder.cpp
+@@ -40,10 +40,7 @@ namespace sibr {
+ #ifndef HEADLESS
+ 		/** Init FFMPEG, registering available codec plugins. */
+ 		if (!ffmpegInitDone) {
+-			SIBR_LOG << "[FFMPEG] Registering all." << std::endl;
+-			// Ignore next line warning.
+-#pragma warning(suppress : 4996)
+-			av_register_all();
++			// FFmpeg >= 4.0 registers codecs automatically (av_register_all was removed in 5.0).
+ 			ffmpegInitDone = true;
+ 		}
+ 		
+@@ -79,9 +76,10 @@ namespace sibr {
+ 		}
+ 
+ 		if (video_st) {
+-			avcodec_close(video_st->codec);
+-			av_free(frameYUV);
++			avcodec_free_context(&pCodecCtx);
++			av_frame_free(&frameYUV);
+ 		}
++		av_packet_free(&pkt);
+ 		avio_close(pFormatCtx->pb);
+ 		avformat_free_context(pFormatCtx);
+ 
+@@ -136,7 +134,7 @@ namespace sibr {
+ 			return;
+ 		}
+ 
+-		pCodecCtx = video_st->codec;
++		pCodecCtx = avcodec_alloc_context3(pCodec);
+ 		pCodecCtx->codec_id = fmt->video_codec;
+ 		pCodecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
+ 		pCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
+@@ -165,6 +163,8 @@ namespace sibr {
+ 			SIBR_WRG << "[FFMPEG] Failed to open encoder, error: " << res << std::endl;
+ 			return;
+ 		}
++		avcodec_parameters_from_context(video_st->codecpar, pCodecCtx);
++		video_st->time_base = pCodecCtx->time_base;
+ 		// Write the file header.
+ 		avformat_write_header(pFormatCtx, NULL);
+ 
+@@ -229,20 +229,19 @@ namespace sibr {
+ #ifndef HEADLESS
+ 	bool FFVideoEncoder::encode(AVFrame * frame)
+ 	{
+-		int got_picture = 0;
+-
+-		int ret = avcodec_encode_video2(pCodecCtx, pkt, frameYUV, &got_picture);
++		// FFmpeg >= 5 send/receive API (avcodec_encode_video2 was removed).
++		int ret = avcodec_send_frame(pCodecCtx, frame);
+ 		if (ret < 0) {
+ 			SIBR_WRG << "[FFMPEG] Failed to encode frame." << std::endl;
+ 			return false;
+ 		}
+-		if (got_picture == 1) {
++		while ((ret = avcodec_receive_packet(pCodecCtx, pkt)) == 0) {
++			av_packet_rescale_ts(pkt, pCodecCtx->time_base, video_st->time_base);
+ 			pkt->stream_index = video_st->index;
+-			ret = av_write_frame(pFormatCtx, pkt);
++			av_write_frame(pFormatCtx, pkt);
+ 			av_packet_unref(pkt);
+ 		}
+-
+-		return true;
++		return ret == AVERROR(EAGAIN) || ret == AVERROR_EOF;
+ 	}
+ #endif
+ 
+diff --git a/SIBR_viewers/src/core/video/FFmpegVideoEncoder.hpp b/SIBR_viewers/src/core/video/FFmpegVideoEncoder.hpp
+index 18f92a1..37c29bb 100644
+--- a/SIBR_viewers/src/core/video/FFmpegVideoEncoder.hpp
++++ b/SIBR_viewers/src/core/video/FFmpegVideoEncoder.hpp
+@@ -104,10 +104,10 @@ namespace sibr {
+ 
+ #ifndef HEADLESS
+ 		AVFormatContext* pFormatCtx; ///< Format context.
+-		AVOutputFormat* fmt; ///< Output format.
++		const AVOutputFormat* fmt; ///< Output format.
+ 		AVStream* video_st; ///< Output stream.
+ 		AVCodecContext* pCodecCtx; ///< Codec context.
+-		AVCodec* pCodec; ///< Codec.
++		const AVCodec* pCodec; ///< Codec.
+ 		AVPacket * pkt; ///< Encoding packet.
+ 		
+ #endif
+diff --git a/SIBR_viewers/src/core/video/VideoUtils.hpp b/SIBR_viewers/src/core/video/VideoUtils.hpp
+index e79dac1..920e7ae 100644
+--- a/SIBR_viewers/src/core/video/VideoUtils.hpp
++++ b/SIBR_viewers/src/core/video/VideoUtils.hpp
+@@ -937,9 +937,9 @@ namespace sibr {
+ 
+ 		uint getModeIndice() const {
+ 			uint mode, mode_size = 0;
+-			for (const auto & [key, val] : bins) {
+-				if (val > mode_size) {
+-					mode_size = val;
++			for (uint key = 0; key < (uint)bins.size(); ++key) {
++				if (bins[key] > mode_size) {
++					mode_size = bins[key];
+ 					mode = key;
+ 				}
+ 			}

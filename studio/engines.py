@@ -44,6 +44,8 @@ DEFAULTS = {
     "training": {"provider": "object_aware_2dgs", "options": {"iterations": 30000}},
     "mesh": {"provider": "object_aware_tsdf", "options": {"mesh_res": 1024}},
     "export": {"provider": "vertex_color_glb", "options": {}},
+    # Live view of the trained Gaussians; sibr_binary None → bundled runtime/sibr.
+    "rendering": {"provider": "gaussian_remote", "options": {"sibr_binary": None, "idle_seconds": 300}},
 }
 
 
@@ -70,6 +72,7 @@ def registry():
     from studio.providers.training_object_aware import ObjectAwareTrainingProvider
     from studio.providers.mesh_tsdf import ObjectAwareTSDFMeshProvider
     from studio.providers.export_glb import VertexColorGlbExportProvider
+    from studio.providers.render_gaussian_remote import GaussianRemoteRenderingProvider
 
     return {
         "camera": {"colmap": ColmapCameraProvider},
@@ -77,6 +80,7 @@ def registry():
         "training": {"object_aware_2dgs": ObjectAwareTrainingProvider},
         "mesh": {"object_aware_tsdf": ObjectAwareTSDFMeshProvider},
         "export": {"vertex_color_glb": VertexColorGlbExportProvider},
+        "rendering": {"gaussian_remote": GaussianRemoteRenderingProvider},
     }
 
 
@@ -90,7 +94,7 @@ def provider(capability):
 
 def all_info():
     out = {}
-    for capability in ("camera", "segmentation", "training", "mesh", "export"):
+    for capability in ("camera", "segmentation", "training", "mesh", "export", "rendering"):
         try:
             out[capability] = provider(capability).info()
         except Exception as exc:  # diagnostics must never break the app

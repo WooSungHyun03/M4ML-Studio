@@ -49,6 +49,9 @@ class _Session:
         from studio.engines import provider
 
         self.device, self.idle = device, idle
+        from studio import live_render
+
+        live_render.release(device)  # object selection takes the GPU from the live viewer
         self.lock = gpu_lock.try_acquire(device)
         if self.lock is None:
             raise SessionError("다른 GPU 작업이 실행 중입니다. 작업이 끝난 뒤 다시 클릭하세요.")

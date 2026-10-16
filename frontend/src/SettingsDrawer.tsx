@@ -17,6 +17,7 @@ const CAPABILITY: Record<string, string> = {
   training: "3D 재구성",
   mesh: "3D 모델 생성",
   export: "3D 모델 보기 · 내보내기",
+  rendering: "실시간 렌더",
 };
 
 function Value({ v }: { v: unknown }) {

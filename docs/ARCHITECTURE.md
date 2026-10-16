@@ -23,7 +23,8 @@
    │             ├─ segmentation  → official SAM 3.1 (studio/sam31.py, child process)
    │             ├─ training      → ORIGINAL Object-Aware train.py (child process)
    │             ├─ mesh          → ORIGINAL 2DGS render.py TSDF (child process)
-   │             └─ export        → PLY vertex RGB → linear COLOR_0 GLB (studio/mesh.py)
+   │             ├─ export        → PLY vertex RGB → linear COLOR_0 GLB (studio/mesh.py)
+   │             └─ rendering     → live Gaussian view (API-side session, see below)
    └── studio/sam31_session.py  (model kept loaded on one GPU; ≈0.2 s per click) ◄──┘
  Per-GPU OS lock  studio/gpu_lock.py  shared by workers and selection sessions
  Data   $XDG_DATA_HOME/m4ml-studio (or legacy object-aware-studio)/projects/<uuid>/
@@ -65,6 +66,25 @@ long-lived process speaking a line-delimited JSON protocol (`predict` → mask P
 `close`). The API keeps at most one per GPU, holds the GPU lock while it lives, closes it
 after `session_idle_seconds` (default 600) or immediately before any GPU job
 (`segmentation_session.release(device)`), and the process exits if the API dies.
+
+### 2a. Rendering provider (live Gaussian view, "실시간 렌더")
+
+`RenderingProvider` (`studio/providers/base.py`, registry key `rendering`, default
+`gaussian_remote` in `studio/providers/render_gaussian_remote.py`) is driven by the
+API-side session manager `studio/live_render.py`, not by the worker, because it is interactive:
+
+```text
+GaussianViewer.tsx ─POST /live-render/frame (camera, size, mode)─▶ live_render._Session
+   ▲  JPEG (moving) / PNG (still)                                   │ RenderingProvider.render
+   │                                                                ▼ SIBR remote wire protocol (loopback, OS port)
+   └──────────────────────────────── studio/gaussian_render_server.py (GPU child: original render())
+                                       ▲ optional: runtime/sibr/bin/SIBR_remoteGaussian_app attaches here
+```
+
+Methods: `locate_model` (validated Gaussian PLY, iterations, cameras, orbit target),
+`server_command`, `connect`, `render`, `modes`, `external_viewer_command`. The session holds
+the per-GPU lock; GPU jobs and object selection release it; stop/idle/backend death end the
+child. Details and measurements: `docs/GAUSSIAN_VIEWER_INTEGRATION.md`.
 
 ## 3. Data contracts
 
@@ -165,7 +185,9 @@ localStorage, save/restore/reset) → status bar.
   remove), `CameraStage` (+ `SparseViewer.tsx`: real sparse points + camera frustums from
   `/sparse-points`), `MaskStage` + `MaskEditor.tsx`, `TrainStage`, `ModelStage` +
   `MeshViewer.tsx` (6 display modes, view presets, ortho, gizmo, grid/axes, lighting,
-  stats, PNG screenshot, reload).
+  stats, PNG screenshot, reload) and `GaussianViewer.tsx` (실시간 렌더: frames from the
+  rendering provider, orbit/pan/zoom, training-camera views, render modes, fullscreen,
+  screenshot); `ModelStage` switches 실시간 렌더 | 메시.
 * `Dialogs.tsx` — help documents served from `docs/` (`/api/help/{name}`, whitelisted),
   about, save-as; `desktop.ts` — QWebChannel bridge with browser fallbacks.
 

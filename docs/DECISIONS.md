@@ -155,3 +155,31 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
   - **Checkpoints** are resumable only with matching training output.
   - **Meshes** are accepted after a PLY header check, and only when they belong to that accepted training output.
 - Results from another dataset are reported as problems and are never attached. Source folders are never written: files are copied into the project. Manual path choice remains available as an advanced option.
+
+### ADR-021: Live Gaussian view = SIBR remote protocol into the editor viewport (2026-10-16)
+- **Verified in source:** the 2DGS-recommended viewer (Gaussian-Splatting-Monitor `SIBR_remoteGaussian_app`) is a display client. It sends camera matrices over TCP and blits RGB frames that the Python renderer produces with the original `render()`/`render_net_image()`. Its own GL drawing is only the SfM point cloud.
+- **Decision:** option 3 (separate renderer process, frames and camera control in the internal viewport).
+  - The editor viewport speaks the same SIBR wire protocol, through the backend, to `studio/gaussian_render_server.py`.
+  - The real SIBR app is built from source (pinned commit + Ubuntu 24.04 patch) and can attach to the same renderer as an advanced external window.
+  - Rejected:
+    - X11 reparenting: forbidden, and not Wayland-capable.
+    - GLFW/QtWebEngine context sharing: fragile.
+    - Streaming SIBR's window: re-encodes the identical frame plus a GL readback, and needs reparenting or a SIBR frame-server patch.
+- **Why not unmodified `view.py`:** observed failures:
+  - exit 1 on every client disconnect (`raise e`: JSONDecodeError, BrokenPipeError);
+  - a 100% CPU accept spin;
+  - single client;
+  - a `Scene` that reads all training images onto the GPU, and writes into the model folder if no iteration is given.
+- **The renderer process:**
+  - keeps the identical render path, proven pixel-identical (max diff 0) for all six original items;
+  - fixes only lifetime and concurrency;
+  - adds `ObjectMark` from the renderer's own `need_objectmark` output.
+- **Transport:** one HTTP request per frame (JPEG while moving, PNG when still). Measured 12 ms median at 1009×753 and 17.5 ms at 1080p. No new dependency.
+- **GPU policy:**
+  - shared per-GPU lock;
+  - GPU jobs and object selection evict the viewer;
+  - closing the viewer frees VRAM;
+  - 300 s idle timeout;
+  - stdin-EOF and owner watchdog.
+- **Provider:** `RenderingProvider`, isolated in `render_gaussian_remote.py`.
+- Full evidence: `docs/GAUSSIAN_VIEWER_INTEGRATION.md`.

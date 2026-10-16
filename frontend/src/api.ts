@@ -204,6 +204,29 @@ export async function api<T = Project>(
   }
   return response.json();
 }
+/** Binary POST (live render frames). Errors carry the server's live-render state. */
+export class LiveError extends Error {
+  constructor(message: string, public state: string) {
+    super(message);
+  }
+}
+export async function postBlob(url: string, body: unknown, signal?: AbortSignal) {
+  const response = await fetch("/api" + url, {
+    method: "POST",
+    body: JSON.stringify(body),
+    signal,
+    headers: { "Content-Type": "application/json", "x-studio-token": await auth() },
+  });
+  if (!response.ok) {
+    let detail = "렌더링에 실패했습니다.";
+    try {
+      const error = await response.json();
+      if (typeof error.detail === "string") detail = error.detail;
+    } catch {}
+    throw new LiveError(detail, response.headers.get("X-Live-State") || "failed");
+  }
+  return { blob: await response.blob(), headers: response.headers };
+}
 export function asset(id: string, path: string) {
   return (
     "/api/projects/" +

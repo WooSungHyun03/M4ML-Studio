@@ -63,6 +63,9 @@ async def lifespan(app):
     from studio import segmentation_session
 
     segmentation_session.release()
+    from studio import live_render
+
+    live_render.release()
     for project in store.list():
         active = store.active(project["id"])
         if active and active["pid"]:
@@ -299,8 +302,10 @@ def engines_info():
         "runtime_path": h["runtime"],
         "gpus": h["gpus"],
         "live_sessions": segmentation_session.status(),
+        "live_render": __import__("studio.live_render", fromlist=["status"]).status(),
         "licenses": [
             {"component": "Object-Aware Loss / 2DGS / Gaussian-Splatting", "license": "비상업적 연구·평가 전용 (licenses/)", "commercial": False},
+            {"component": "SIBR remote viewer (Gaussian-Splatting-Monitor, 외부 뷰어)", "license": "Inria 비상업적 연구·평가 전용 (runtime/sibr/licenses/)", "commercial": False},
             {"component": "SAM 3.1 코드·체크포인트", "license": "SAM License (licenses/), 체크포인트 이용 조건 별도 확인", "commercial": None},
             {"component": "COLMAP 자체", "license": "BSD-3-Clause (종속 라이브러리 별도)", "commercial": True},
             {"component": "내장 정합 런타임 종속 라이브러리", "license": "SuiteSparse GPL/LGPL 포함. 소스 제공·재링크·결합 배포 검토 미완료. 공개 배포 보류", "commercial": None},
@@ -342,6 +347,9 @@ def shutdown():
     from studio import segmentation_session
 
     segmentation_session.release()
+    from studio import live_render
+
+    live_render.release()
     threading.Timer(0.5, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
     return {"message": "실행 작업을 정리하고 M4ML Studio를 종료합니다."}
 
@@ -471,6 +479,9 @@ def complete_import(project_id: str):
         from studio import segmentation_session
 
         segmentation_session.release(gpus[0].get("uuid", "0"))
+        from studio import live_render
+
+        live_render.release(gpus[0].get("uuid", "0"))
         return {
             "job_id": launch(store, project_id, "colmap", {
                 "matching": "exhaustive", "gpu": gpus[0]["index"], "gpu_uuid": gpus[0].get("uuid", "0")})
@@ -944,6 +955,111 @@ def project_assets(project_id: str):
     return {"checkpoints": checkpoints, "mesh_files": mesh_files, "project_path": str(root)}
 
 
+class LiveStart(Strict):
+    gpu: int = 0
+    iteration: int | None = None
+
+
+class LiveFrame(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    view: list[float] = Field(min_length=16, max_length=16)
+    fovy: float = Field(gt=0.05, lt=3.0)
+    width: int = Field(ge=16, le=4096)
+    height: int = Field(ge=16, le=4096)
+    znear: float = Field(default=0.01, gt=0)
+    zfar: float = Field(default=1000.0, gt=0)
+    mode: str = Field(default="rgb", pattern="^[a-z]{2,16}$")
+    encoding: str = Field(default="jpeg", pattern="^(jpeg|png)$")
+    quality: int = Field(default=88, ge=50, le=95)
+    scaling: float = Field(default=1.0, ge=0.01, le=1.0)
+
+
+def _live_model(project_id, iteration=None):
+    from studio.engines import provider
+
+    p = store.get(project_id)
+    return p, provider("rendering").locate_model(store.path(project_id), p, iteration)
+
+
+@app.get("/api/projects/{project_id}/live-render")
+def live_render_info(project_id: str, iteration: int | None = None):
+    """What the live Gaussian viewport can show for this project (no GPU work)."""
+    from studio import live_render
+    from studio.engines import provider
+
+    try:
+        p, model = _live_model(project_id, iteration)
+    except (FileNotFoundError, ValueError) as exc:
+        return {"available": False, "reason": str(exc)}
+    session = live_render.session_for(project_id)
+    ext = provider("rendering").info()
+    return {
+        "available": True,
+        "model": {k: model[k] for k in ("iterations", "iteration", "gaussians", "ply_bytes", "cameras", "target")},
+        "training_running": bool((store.active(project_id) or {}).get("stage") in ("train", "mesh")),
+        "session": session.status() if session else None,
+        "external_viewer": bool(ext.get("external_viewer")) and not ext.get("external_viewer_missing_libraries"),
+    }
+
+
+@app.post("/api/projects/{project_id}/live-render/start")
+def live_render_start(project_id: str, body: LiveStart):
+    from studio import live_render
+
+    active = store.active(project_id)
+    if active and active.get("stage") in ("colmap", "train", "mesh", "sam"):
+        raise HTTPException(409, "GPU 작업이 실행 중입니다. 작업이 끝난 뒤 실시간 렌더를 사용할 수 있습니다.")
+    gpu = next((g for g in health()["gpus"] if g["index"] == body.gpu), None)
+    if gpu is None:
+        raise HTTPException(409, "사용할 수 있는 NVIDIA GPU가 없습니다.")
+    try:
+        _, model = _live_model(project_id, body.iteration)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(404, str(exc))
+    try:
+        status = live_render.start(gpu.get("uuid", str(body.gpu)), project_id, model,
+                                   store.path(project_id) / "logs" / "live-render.log")
+    except live_render.LiveRenderError as exc:
+        raise HTTPException(409 if exc.state == "busy" else 503, str(exc), headers={"X-Live-State": exc.state})
+    return status
+
+
+@app.post("/api/projects/{project_id}/live-render/frame")
+def live_render_frame(project_id: str, body: LiveFrame):
+    from fastapi.responses import Response
+    from studio import live_render
+
+    try:
+        data, stats = live_render.frame(project_id, body.model_dump(), body.encoding)
+    except live_render.LiveRenderError as exc:
+        raise HTTPException(503, str(exc), headers={"X-Live-State": exc.state})
+    headers = {f"X-Render-{k.replace('_', '-')}": str(v) for k, v in stats.items() if v is not None}
+    return Response(data, media_type="image/png" if body.encoding == "png" else "image/jpeg",
+                    headers={**headers, "Cache-Control": "no-store"})
+
+
+@app.post("/api/projects/{project_id}/live-render/stop")
+def live_render_stop(project_id: str):
+    from studio import live_render
+
+    return {"stopped": live_render.release(project_id=project_id)}
+
+
+@app.post("/api/projects/{project_id}/live-render/external")
+def live_render_external(project_id: str):
+    """Advanced: attach the bundled SIBR remote viewer window to the running renderer."""
+    from studio import live_render
+
+    session = live_render.session_for(project_id)
+    if session is None:
+        raise HTTPException(409, "먼저 실시간 렌더를 시작하세요.")
+    try:
+        session.open_external()
+    except live_render.LiveRenderError as exc:
+        raise HTTPException(409, str(exc))
+    return session.status()
+
+
 @app.get("/api/projects/{project_id}/sparse-points")
 def sparse_points(project_id: str, limit: int = 150000):
     """Sparse 3D points (xyz+rgb) and camera poses of the selected reconstruction for the viewer."""
@@ -1212,6 +1328,9 @@ def start_job(project_id: str, stage: str, body: Job):
             from studio import segmentation_session
 
             segmentation_session.release(request["gpu_uuid"])
+            from studio import live_render
+
+            live_render.release(request["gpu_uuid"])
         return {"job_id": launch(store, project_id, stage, request)}
 
 

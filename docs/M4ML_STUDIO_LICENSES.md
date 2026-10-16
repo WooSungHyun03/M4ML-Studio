@@ -14,6 +14,7 @@
 | 최소 OpenImageIO2.5.19.1 | Apache-2.0 원문, 실제 custom build 명시 | 고지 포함 |
 | SuiteSparse7.6: CHOLMOD/SPQR/AMD 등 | Ubuntu 실제 패키지 copyright + GPL/LGPL 원문 포함 | GPL/LGPL 혼합. corresponding source·relinking·결합 라이선스 검토 필요 |
 | cudart12.6.77 | 실제 conda 패키지 CUDA12.6 EULA 원문 | NVIDIA 재배포 가능 구성요소 범위·조건 확인 필요. 드라이버 미포함 |
+| SIBR remote viewer (Gaussian-Splatting-Monitor @2b6190c, `runtime/sibr`) | `runtime/sibr/licenses/` (Inria SIBR, GRAPHDECO GS 라이선스), `patches/sibr/`, `SOURCES.json` | 비상업 연구·평가 전용. SIBR 자체 라이브러리만 포함, Ubuntu 시스템 라이브러리(FFmpeg·OpenCV·Qt5 등)는 재배포하지 않음 |
 | PySide6 / Qt 6.8.1 (데스크톱 창) | 설치 시 PyPI에서 받는 `PySide6-Essentials/Addons`, `shiboken6` wheel. Qt·PySide6는 LGPL-3.0(일부 모듈 GPL/상용 이중), QtWebEngine은 Chromium 구성요소 고지 포함 | 번들에 넣지 않고 설치 단계에서 받는다. 수정 없이 동적 링크 wheel로 사용. 공개 배포 시 LGPL 고지·교체 가능성 확인 필요(미검토) |
 | Logo | 제공된 원본과 원본에서 자른 아이콘 | 제품 식별에 사용. 별도 공개 이용권을 부여하지 않음 |
 
