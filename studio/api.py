@@ -884,16 +884,21 @@ def _import_training(pid, folder, scan, skipped, use_mesh):
             _import_mesh(pid, folder / meshes[0]["path"], last)
             used.append(f"3D 모델 ({meshes[0]['triangles']:,} 삼각형)")
     elif t.get("checkpoints"):
+        from studio.artifacts import dataset_identity
+
         last = t["checkpoints"][-1]
         if last >= 30000:
             skipped.append("저장 지점이 이미 기본 학습 횟수 이상이라 이어서 학습하지 않습니다.")
             return []
+        current = store.get(pid)
+        identity = dataset_identity(root / current["scene"], current["masks"])
         shutil.copyfile(src / f"chkpnt{last}.pth", dest / f"chkpnt{last}.pth")
 
         def partial(doc):
             doc["training_partial"] = {
                 "path": str(dest.relative_to(root)), "checkpoint": last, "iterations": 30000,
-                "fingerprint": {"masks": {n: m["sha256"] for n, m in doc["masks"].items()}, "scene": doc["scene"],
+                "fingerprint": {"dataset": identity,
+                                "masks": {n: m["sha256"] for n, m in doc["masks"].items()}, "scene": doc["scene"],
                                 "iterations": 30000, "resolution": -1}, "time": __import__("studio.store", fromlist=["now"]).now()}
 
         store.update(pid, partial)
@@ -1532,10 +1537,9 @@ def cancel(project_id: str):
         store.job_update(
             job["id"], cancel_requested=1, message="작업을 중지하고 있습니다."
         )
-        try:
-            os.kill(job["pid"], signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        from studio.process import signal_owned_worker
+
+        signal_owned_worker(job["pid"], job["id"])
     return {"message": "중지 요청을 보냈습니다. 종료 상태와 로그를 확인하세요."}
 
 

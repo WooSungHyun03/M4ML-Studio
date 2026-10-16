@@ -244,7 +244,9 @@ class Store:
                 try:
                     command = Path(f"/proc/{pid}/cmdline").read_bytes() if pid else b""
                     if b"studio.worker" in command and job["id"].encode() in command:
-                        os.kill(pid, signal.SIGTERM)
+                        from studio.process import signal_owned_worker
+
+                        signal_owned_worker(pid, job["id"])
                         # Recovery will refuse duplicate workers until confirmed dead.
                         import time
 

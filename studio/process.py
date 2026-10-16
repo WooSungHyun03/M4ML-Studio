@@ -13,6 +13,27 @@ class Cancelled(RuntimeError):
     pass
 
 
+def signal_owned_worker(pid, job_id):
+    """Never signal a recycled PID; a pidfd pins the checked process on Linux."""
+    descriptor = None
+    try:
+        if hasattr(os, "pidfd_open"):
+            descriptor = os.pidfd_open(pid)
+        argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+        if b"studio.worker" not in argv or job_id.encode() not in argv:
+            return False
+        if descriptor is not None and hasattr(signal, "pidfd_send_signal"):
+            signal.pidfd_send_signal(descriptor, signal.SIGTERM)
+        else:
+            os.kill(pid, signal.SIGTERM)
+        return True
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
 def failure_message(log_path, error):
     path = Path(log_path)
     if path.is_file():

@@ -21,6 +21,7 @@ from studio.process import Cancelled, failure_message
 from studio.providers.base import JobContext
 from studio.sam31 import validate_mask
 from studio.store import Store, invalidate, now
+from studio.progress import ProgressReporter
 
 
 def _owner_monitor(cancel):
@@ -85,11 +86,7 @@ def run_job(job_id):
         if engine.requires_gpu(request):
             lock = _acquire_gpu(store, job_id, device, cancel)
 
-        def progress(message, current=None, total=None):
-            values = {"message": message}
-            if current is not None:
-                values.update(current=current, total=total)
-            store.job_update(job_id, **values)
+        progress = ProgressReporter(store, job_id)
 
         offset = {"iteration": 0, "total": None}  # set when resuming from a checkpoint
 
@@ -97,7 +94,7 @@ def run_job(job_id):
             parsed = provider("training").parse_progress(line) if stage == "train" else None
             if parsed:
                 # tqdm restarts at 0 after --start_checkpoint; report absolute iterations.
-                store.job_update(job_id, current=parsed.iteration + offset["iteration"],
+                progress(current=parsed.iteration + offset["iteration"],
                                  total=offset["total"] or parsed.total,
                                  message=f"3D 재구성 학습 중 · 손실 {parsed.loss:.5f}")
             elif line.startswith('{"frame"'):
@@ -198,12 +195,13 @@ def run_job(job_id):
                     raise ValueError("마스크 파일이 변경되었습니다. 다시 확인하세요.")
                 shutil.copyfile(root / item["path"], mask_dir / (Path(name).stem + ".png"))
                 fingerprints[name] = stats["sha256"]
-            fingerprint = {"masks": fingerprints, "scene": p["scene"],
+            from studio.artifacts import dataset_identity, require_resume_identity
+
+            fingerprint = {"dataset": dataset_identity(scene, names), "masks": fingerprints, "scene": p["scene"],
                            "iterations": request["iterations"], "resolution": request.get("resolution", -1)}
             partial = p.get("training_partial")
             if request.get("resume"):
-                if not partial or partial.get("fingerprint") != fingerprint:
-                    raise ValueError("사진·마스크·설정이 바뀌어 이어서 학습할 수 없습니다. 새로 시작하세요.")
+                require_resume_identity(partial.get("fingerprint") if partial else None, fingerprint)
                 training = root / partial["path"]
                 request["resume_iteration"] = partial["checkpoint"]
                 offset.update(iteration=partial["checkpoint"], total=request["iterations"])

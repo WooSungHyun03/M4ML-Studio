@@ -51,6 +51,36 @@ class ConfigMigration(unittest.TestCase):
 
 
 class Registry(unittest.TestCase):
+    def test_alternative_providers_use_existing_capability_contract_without_ui_change(self):
+        from studio import engines
+        from studio.providers.base import SegmentationProvider, ExportProvider
+
+        class ContractSegmentation(SegmentationProvider):
+            key = "contract_only"
+
+            def session_command(self):
+                return ["contract-test-session"]
+
+        class ContractExport(ExportProvider):
+            key = "contract_export"
+
+            def validate_and_preview(self, mesh, output=None):
+                return {"path": str(mesh), "output": str(output), "fixture": True}
+
+        classes = engines.registry()
+        classes["segmentation"][ContractSegmentation.key] = ContractSegmentation
+        classes["export"][ContractExport.key] = ContractExport
+        cfg = engines._merge(engines.DEFAULTS, {
+            "segmentation": {"provider": ContractSegmentation.key, "options": {"sentinel": 7}},
+            "export": {"provider": ContractExport.key},
+        })
+        with mock.patch.object(engines, "registry", return_value=classes), mock.patch.object(engines, "config", return_value=cfg):
+            segmentation, exporter = engines.provider("segmentation"), engines.provider("export")
+            self.assertEqual(segmentation.options["sentinel"], 7)
+            self.assertEqual(segmentation.session_command(), ["contract-test-session"])
+            self.assertFalse(exporter.requires_gpu({}))
+            self.assertTrue(exporter.validate_and_preview(Path("fixture.ply"))["fixture"])
+
     def test_every_capability_resolves_to_a_provider(self):
         from studio import engines
 

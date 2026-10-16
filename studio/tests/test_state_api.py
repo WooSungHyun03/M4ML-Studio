@@ -3,6 +3,9 @@ from io import BytesIO
 import json
 from pathlib import Path
 import struct
+import subprocess
+import sys
+import time
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -51,6 +54,20 @@ def fixture_scene(root):
 
 
 class StateAndAPITests(unittest.TestCase):
+    def test_cancel_does_not_signal_an_unrelated_process_after_pid_reuse(self):
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+        try:
+            job = self.store.new_job(self.id, "train", {})
+            self.store.job_update(job, pid=child.pid)
+            r = self.client.post(self.url + "/cancel", headers=self.headers)
+            self.assertEqual(r.status_code, 200)
+            time.sleep(.05)
+            self.assertIsNone(child.poll(), "cancel signalled a PID that does not belong to this job")
+        finally:
+            if child.poll() is None:
+                child.terminate()
+            child.wait(timeout=5)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.store = Store(self.temp.name)
