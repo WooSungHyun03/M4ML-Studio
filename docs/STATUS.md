@@ -380,3 +380,8 @@ Request: "2DGS SIBR Gaussian Viewer 통합". Full record: `docs/GAUSSIAN_VIEWER_
 - Reproduced failed connection leaving real child alive/lock ResourceWarning. Fixed partial-start ownership, process/socket/pipe/log/lock cleanup and actionable startup error. Four new real CPU process/lock/socket tests, full80 Python PASS.
 - Actual RTX4080 failure after original437838-Gaussian model load → child reaped/lock reacquired → retry/five modes/repeated close PASS. Original manifest/Gaussian hashes unchanged. Browser live-render21 PASS/console0 on copied test projects; not new training/nativeQt evidence. Logs `evidence/quality-harness/`, current handoff and commands `quality-harness/state/{STATUS,NEXT_ACTION,EVIDENCE}.md`.
 - Next raw-protocol input validation; native dialogs/clean0.5 install/Wayland and legal release gates remain open. No push/package change.
+
+### Quality harness loop H2 — renderer input boundary (2026-10-16)
+- API NaN/Infinity/invalid clipping planes reproduced as accepted; now422 with JSON-safe errors. Direct SIBR packets have64KiB/4096-side/finite-camera/four-client bounds before native CUDA, retaining0×0 heartbeat and original wire representation.
+-85 Python PASS,4 focused raw-protocol tests,11 live API tests; actual RTX4080 direct malformed packets refused while valid five-mode output stayed byte-identical. Browser live21 and editor28 PASS/console0. E-003 and `evidence/quality-harness/` hold repro/results.
+- Direct SIBR authentication remains absent; local users can still connect/consume allowed slots. No broad security or public-release completion claim. Next desktop origin/bridge audit.

@@ -25,6 +25,70 @@ import struct
 
 import numpy as np
 
+MAX_JSON_BYTES = 64 * 1024
+MAX_FRAME_SIDE = 4096
+MAX_CAMERA_VALUE = float(np.finfo(np.float32).max)
+
+
+def receive_json(conn):
+    """Read one original wire-format packet, rejecting its length before allocation."""
+    def exact(n):
+        data = bytearray(n)
+        view = memoryview(data)
+        used = 0
+        while used < n:
+            count = conn.recv_into(view[used:])
+            if not count:
+                raise ConnectionError("렌더러 연결이 끊겼습니다.")
+            used += count
+        return data
+
+    (length,) = struct.unpack("<I", exact(4))
+    if not 0 < length <= MAX_JSON_BYTES:
+        raise ValueError("렌더 요청 크기 제한을 초과했습니다.")
+    return json.loads(exact(length).decode("utf-8"))
+
+
+def validate_camera_message(message, mode_count=7):
+    """Validate direct SIBR clients too; the HTTP API is not the sole CUDA boundary.
+
+    The zero-size SIBR heartbeat needs no camera. Valid packets retain their exact
+    wire representation; no camera, model or rendering algorithm is transformed.
+    """
+    if not isinstance(message, dict):
+        raise ValueError("카메라 요청 형식이 올바르지 않습니다.")
+    dims = [message.get(k) for k in ("resolution_x", "resolution_y")]
+    if any(type(n) is not int or not 0 <= n <= MAX_FRAME_SIDE for n in dims):
+        raise ValueError("렌더 해상도는 0~4096 범위의 정수여야 합니다.")
+    if 0 in dims:
+        if dims != [0, 0]:
+            raise ValueError("렌더 해상도의 가로와 세로를 함께 지정하세요.")
+        return message
+
+    def finite(value):
+        # Native camera tensors use float32; reject finite Python floats that
+        # would become infinity when converted by the original renderer.
+        return type(value) in (int, float) and -MAX_CAMERA_VALUE <= value <= MAX_CAMERA_VALUE and math.isfinite(value)
+
+    for name in ("view_matrix", "view_projection_matrix"):
+        values = message.get(name)
+        if not isinstance(values, list) or len(values) != 16 or not all(finite(v) for v in values):
+            raise ValueError("카메라 행렬은 유한한 값 16개여야 합니다.")
+    for name in ("fov_x", "fov_y"):
+        value = message.get(name)
+        if not finite(value) or not 0 < value < math.pi:
+            raise ValueError("카메라 시야각이 올바르지 않습니다.")
+    near, far = message.get("z_near"), message.get("z_far")
+    if not finite(near) or not finite(far) or not 0 < near < far:
+        raise ValueError("카메라 원거리 절단면은 근거리 절단면보다 커야 합니다.")
+    scaling = message.get("scaling_modifier", 1.0)
+    mode = message.get("render_mode", 0)
+    if not finite(scaling) or not 0 <= scaling <= 10:
+        raise ValueError("렌더 크기 배율이 올바르지 않습니다.")
+    if type(mode) is not int or not 0 <= mode < mode_count:
+        raise ValueError("지원하지 않는 렌더 모드입니다.")
+    return message
+
 
 def perspective(fovy: float, aspect: float, znear: float, zfar: float) -> np.ndarray:
     """Standard OpenGL projection (what sibr::Camera::proj() returns)."""
@@ -89,8 +153,7 @@ class RemoteRendererClient:
         return bytes(buf)
 
     def _read_json(self):
-        (length,) = struct.unpack("<I", self._read_exact(4))
-        return json.loads(self._read_exact(length).decode("utf-8"))
+        return receive_json(self.sock)
 
     def request(self, message: dict) -> tuple[bytes | None, str, dict]:
         data = json.dumps(message).encode("utf-8")

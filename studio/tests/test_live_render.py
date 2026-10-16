@@ -173,6 +173,23 @@ class LiveRenderApiTests(unittest.TestCase):
         self.assertEqual(self.client.post(f"/api/projects/{self.id}/live-render/frame", json=huge, headers=self.headers).status_code, 422)
         self.assertEqual(self.client.post(f"/api/projects/{self.id}/live-render/stop", headers=self.headers).json(), {"stopped": 0})
 
+    def test_nonfinite_view_and_inverted_clip_planes_rejected_before_renderer(self):
+        good = {"view": np.eye(4).T.reshape(-1).tolist(), "fovy": 0.8, "width": 64, "height": 48}
+        invalid_view = list(good["view"])
+        invalid_view[3] = "NaN"
+        for body in ({**good, "view": invalid_view}, {**good, "zfar": "Infinity"},
+                     {**good, "znear": 10, "zfar": 1}, {**good, "znear": 1, "zfar": 1}):
+            with self.subTest(body=body):
+                response = self.client.post(f"/api/projects/{self.id}/live-render/frame", json=body, headers=self.headers)
+                self.assertEqual(response.status_code, 422, response.text)
+        # Non-standard JSON numeric tokens can be accepted by Python's decoder.
+        # Their validation errors must also serialize as 422 instead of crashing.
+        for value in (float("nan"), float("inf"), float("-inf")):
+            raw = json.dumps({**good, "view": [value] + good["view"][1:]})
+            response = self.client.post(f"/api/projects/{self.id}/live-render/frame", content=raw,
+                                        headers={**self.headers, "content-type": "application/json"})
+            self.assertEqual(response.status_code, 422, response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

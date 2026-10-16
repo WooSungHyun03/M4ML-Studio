@@ -188,3 +188,7 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
 - Observed real child surviving provider handshake failure before registration in `_sessions`. Failure cleanup must not depend on Python garbage collection or session reaper membership.
 - Initialise ownership before acquisition; close on all startup exceptions, preserving interruptions and translating ordinary failures to `LiveRenderError`. Close partial sockets and reap owned children. Original renderer, GPU runtime, provider protocol and model formats remain unchanged.
 - Evidence: four real CPU child/lock/socket tests,80 Python, actual CUDA model-load failure/retry and21 browser checks (`quality-harness/state/EVIDENCE.md`, E-002).
+
+### ADR-023: Validate every renderer entry before CUDA (2026-10-16)
+- HTTP validation alone cannot protect the direct SIBR socket. Bound length before buffer allocation, connections, resolution and native camera values on that entry too; retain wire compatibility and0×0 heartbeat. Keep direct-socket authentication an explicit unresolved limitation instead of silently breaking the external viewer protocol.
+- Reject nonfinite HTTP camera values and invalid near/far. Pydantic errors omit raw input/context so invalid NaN/Infinity cannot crash JSON error serialization. Full85 tests and actual GPU malformed input + byte-identical five-mode output pass; browser21/editor28 pass.

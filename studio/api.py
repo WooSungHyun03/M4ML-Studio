@@ -13,7 +13,8 @@ import time
 from fastapi import FastAPI, UploadFile, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, ConfigDict
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 from PIL import Image
 
 from studio.colmap import validate_scene
@@ -133,6 +134,14 @@ async def local_only(request: Request, call_next):
 @app.exception_handler(ValueError)
 async def invalid(request, exc):
     return JSONResponse({"detail": str(exc)}, status_code=422)
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request, exc):
+    # Pydantic's raw `input` can contain NaN/Infinity from invalid JSON numbers,
+    # and `ctx` may contain an exception. Neither is safe to echo as JSON.
+    detail = [{k: error[k] for k in ("loc", "msg", "type") if k in error} for error in exc.errors()]
+    return JSONResponse({"detail": detail}, status_code=422)
 
 
 @app.exception_handler(FileNotFoundError)
@@ -961,7 +970,7 @@ class LiveStart(Strict):
 
 
 class LiveFrame(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     view: list[float] = Field(min_length=16, max_length=16)
     fovy: float = Field(gt=0.05, lt=3.0)
     width: int = Field(ge=16, le=4096)
@@ -972,6 +981,12 @@ class LiveFrame(BaseModel):
     encoding: str = Field(default="jpeg", pattern="^(jpeg|png)$")
     quality: int = Field(default=88, ge=50, le=95)
     scaling: float = Field(default=1.0, ge=0.01, le=1.0)
+
+    @model_validator(mode="after")
+    def valid_clip_planes(self):
+        if self.zfar <= self.znear:
+            raise ValueError("카메라 원거리 절단면은 근거리 절단면보다 커야 합니다.")
+        return self
 
 
 def _live_model(project_id, iteration=None):

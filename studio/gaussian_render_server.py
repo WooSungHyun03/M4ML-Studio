@@ -34,6 +34,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from studio.gaussian_protocol import receive_json, validate_camera_message
+
 EXTRA_ITEMS = ["ObjectMark"]
 
 
@@ -124,16 +126,8 @@ def main():
     port = listener.getsockname()[1]
     count = int(gaussians.get_opacity.shape[0])
     gpu_lock = threading.Lock()
+    client_slots = threading.BoundedSemaphore(4)
     verify = str(args.source)
-
-    def recv_exact(conn, n):
-        buf = bytearray()
-        while len(buf) < n:
-            chunk = conn.recv(n - len(buf))
-            if not chunk:
-                raise ConnectionError
-            buf += chunk
-        return bytes(buf)
 
     def send_json(conn, data):
         raw = json.dumps(data).encode("utf-8")
@@ -167,10 +161,10 @@ def main():
     def serve(conn):
         try:
             conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            conn.settimeout(300)  # same default as the API's idle renderer lifetime
             send_json(conn, render_items)
             while True:
-                (length,) = struct.unpack("<I", recv_exact(conn, 4))
-                message = json.loads(recv_exact(conn, length).decode("utf-8"))
+                message = validate_camera_message(receive_json(conn), len(render_items))
                 image, ms = frame(message)
                 if image is not None:
                     conn.sendall(image)
@@ -182,11 +176,15 @@ def main():
             _say(event="render_error", error=str(exc), oom="out of memory" in str(exc).lower())
         finally:
             conn.close()
+            client_slots.release()
 
     _say(ready=True, port=port, gaussians=count, render_items=render_items, iteration=args.iteration,
          load_seconds=round(time.monotonic() - t0, 2), vram_mb=round(torch.cuda.memory_allocated() / 2**20))
     while True:
         conn, _ = listener.accept()
+        if not client_slots.acquire(blocking=False):
+            conn.close()
+            continue
         threading.Thread(target=serve, args=(conn,), daemon=True).start()
 
 

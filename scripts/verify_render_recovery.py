@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import struct
 import sys
 from unittest.mock import patch
 
@@ -17,7 +18,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from studio import gpu_lock, live_render
-from studio.gaussian_protocol import gl_view_from_colmap
+from studio.gaussian_protocol import MAX_JSON_BYTES, RemoteRendererClient, camera_message, gl_view_from_colmap
 from studio.providers.render_gaussian_remote import GaussianRemoteRenderingProvider
 
 
@@ -78,6 +79,38 @@ def main():
         w2c[:3, 3] = -w2c[:3, :3] @ np.asarray(c["position"])
         camera = {"view": gl_view_from_colmap(w2c).T.reshape(-1).tolist(), "width": 640, "height": 480,
                   "fovy": float(2 * np.arctan(c["height"] / (2 * c["fy"]))) }
+        # Exercise the direct loopback entry, not merely HTTP/Pydantic validation.
+        valid = camera_message(gl_view_from_colmap(w2c), 640, 480, camera["fovy"], 0.01, 1000)
+        invalid = {**valid, "resolution_x": 100000}
+        nonfinite = {**valid, "view_matrix": [float("nan")] * 16}
+        for name, message in (("huge dimensions", invalid), ("nonfinite matrix", nonfinite),
+                              ("oversized declared packet", None)):
+            client = RemoteRendererClient("127.0.0.1", session.info["port"], timeout=3)
+            try:
+                if message is None:
+                    client.sock.sendall(struct.pack("<I", MAX_JSON_BYTES + 1))
+                else:
+                    raw = json.dumps(message).encode()
+                    client.sock.sendall(struct.pack("<I", len(raw)) + raw)
+                assert client.sock.recv(1) == b"", "invalid direct request was not rejected"
+                assert session.alive()
+                report["checks"].append({"name": "direct socket rejects " + name, "pass": True})
+            finally:
+                client.close()
+        extra = []
+        try:
+            for _ in range(3):  # plus the session's client = four supported clients
+                extra.append(RemoteRendererClient("127.0.0.1", session.info["port"], timeout=3))
+            try:
+                unwanted = RemoteRendererClient("127.0.0.1", session.info["port"], timeout=3)
+            except ConnectionError:
+                report["checks"].append({"name": "fifth direct client refused", "pass": True})
+            else:
+                unwanted.close()
+                raise AssertionError("renderer accepted more than four direct clients")
+        finally:
+            for client in extra:
+                client.close()
         for mode in session.modes:
             frame, stats = session.frame({**camera, "mode": mode["key"]}, "png")
             (out / (mode["key"] + ".png")).write_bytes(frame)
