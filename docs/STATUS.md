@@ -385,3 +385,9 @@ Request: "2DGS SIBR Gaussian Viewer 통합". Full record: `docs/GAUSSIAN_VIEWER_
 - API NaN/Infinity/invalid clipping planes reproduced as accepted; now422 with JSON-safe errors. Direct SIBR packets have64KiB/4096-side/finite-camera/four-client bounds before native CUDA, retaining0×0 heartbeat and original wire representation.
 -85 Python PASS,4 focused raw-protocol tests,11 live API tests; actual RTX4080 direct malformed packets refused while valid five-mode output stayed byte-identical. Browser live21 and editor28 PASS/console0. E-003 and `evidence/quality-harness/` hold repro/results.
 - Direct SIBR authentication remains absent; local users can still connect/consume allowed slots. No broad security or public-release completion claim. Next desktop origin/bridge audit.
+
+### Quality harness loop H3 — native page credential/bridge isolation (2026-10-16)
+- Confirmed in real Qt window: navigating a benign different loopback origin received token/native bridge. Recorded booleans only (`desktop-origin-before.json`, exit1), no external transfer.
+- Fixed exact launch-origin navigation gate and independent credential/bootstrap origin guard in `studio/desktop/app.py`. Untrusted file/data/foreign pages cannot replace the privileged page. Existing local routes/UI unchanged.
+-87 Python PASS,2 focused origin/bootstrap tests; real Qt navigation security5 and live GPU desktop9 checks PASS/console0. Details E-004 in harness state. Existing8765 data/app preserved.
+- Next QA-001: actual original GPU training→automatic color mesh through the new editor. Clean0.5 install/native file-dialog/DnD/Wayland remain unverified; direct SIBR local-user authentication still absent and release licence HOLD unchanged.

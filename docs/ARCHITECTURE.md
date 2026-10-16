@@ -8,7 +8,7 @@
 ```text
  Desktop shell  studio/desktop (PySide6 + QtWebEngine; launched by scripts/launch.py)
    │  native window/dialogs/downloads via QWebChannel; spawns the API on a free loopback
-   │  port with a per-launch token (injected into the page only); stops it on close
+   │  port with a per-launch token (injected into that exact origin only); stops it on close
    │  (developer mode: scripts/launch.py --browser → system browser on STUDIO_PORT)
  React + TypeScript + Vite UI (static build, served by the API)
    │  HTTP JSON + SSE (per-project event stream), CSRF token header, Host/Origin checks

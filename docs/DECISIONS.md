@@ -192,3 +192,8 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
 ### ADR-023: Validate every renderer entry before CUDA (2026-10-16)
 - HTTP validation alone cannot protect the direct SIBR socket. Bound length before buffer allocation, connections, resolution and native camera values on that entry too; retain wire compatibility and0×0 heartbeat. Keep direct-socket authentication an explicit unresolved limitation instead of silently breaking the external viewer protocol.
 - Reject nonfinite HTTP camera values and invalid near/far. Pydantic errors omit raw input/context so invalid NaN/Infinity cannot crash JSON error serialization. Full85 tests and actual GPU malformed input + byte-identical five-mode output pass; browser21/editor28 pass.
+
+### ADR-024: Native bridge is restricted to the launch backend origin (2026-10-16)
+- Real Qt navigation to a foreign loopback page inherited both credential and QWebChannel access. Main-frame script injection settings alone do not establish an origin boundary.
+- Restrict page navigation, including subframes/redirects/file/data, to exact127.0.0.1 launch scheme/port. Independently guard bootstrap injection by `window.location.origin`. External content is not opened inside the native privileged page. Existing local routes/downloads retain the backend origin.
+- Evidence: retained native FAIL→PASS,2 policy/bootstrap tests,87 Python and9 real desktop GPU checks; no token values logged (E-004).

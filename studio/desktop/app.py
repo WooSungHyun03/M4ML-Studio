@@ -23,11 +23,37 @@ import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "m4ml-studio"
 DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "m4ml-studio"
 ICON = ROOT / "frontend/public/m4ml-icon.png"
+
+
+def trusted_navigation(url: str, backend_url: str) -> bool:
+    """The page with a native bridge may display only this launch's backend origin."""
+    try:
+        target, backend = urlsplit(url), urlsplit(backend_url)
+        return (
+            target.scheme == backend.scheme == "http"
+            and target.hostname == backend.hostname == "127.0.0.1"
+            and target.port == backend.port
+            and target.username is None and target.password is None
+        )
+    except ValueError:
+        return False
+
+
+def bootstrap_script(origin: str, token: str, channel_js: str) -> str:
+    """Defence in depth: never publish credentials to a foreign document."""
+    return (
+        "(() => { if (window.location.origin !== " + json.dumps(origin) + ") return;\n"
+        + channel_js
+        + f"\nwindow.__M4ML_TOKEN__={json.dumps(token)};window.__M4ML_DESKTOP__=true;"
+        "window.m4mlReady=new Promise(function(res){new QWebChannel(qt.webChannelTransport,function(c){window.m4ml=c.objects.m4ml;res(window.m4ml);});});\n"
+        "})();"
+    )
 
 
 def log(message):
@@ -197,6 +223,13 @@ def main(argv=None):
         def info(self):
             return json.dumps({"desktop": True, "backend": backend.url, "log": str(CACHE), "qt": __import__("PySide6").__version__})
 
+    class StudioPage(QWebEnginePage):
+        def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+            # Applies to redirects, file/data URLs, dropped HTML and subframes too.
+            # QWebChannel belongs to the page, so guarding the token script alone
+            # cannot protect native methods from a document with its own channel JS.
+            return trusted_navigation(url.toString(), backend.url)
+
     class Window(QMainWindow):
         def __init__(self):
             super().__init__()
@@ -208,7 +241,7 @@ def main(argv=None):
             profile.setCachePath(str(CACHE / "webengine"))
             profile.downloadRequested.connect(self.download)
             self.view = QWebEngineView(self)
-            page = QWebEnginePage(profile, self.view)
+            page = StudioPage(profile, self.view)
             self.view.setPage(page)
             s = page.settings()
             s.setAttribute(QWebEngineSettings.WebGLEnabled, True)
@@ -224,10 +257,7 @@ def main(argv=None):
 
             f = QFile(":/qtwebchannel/qwebchannel.js")
             f.open(QIODevice.ReadOnly)
-            boot = bytes(f.readAll()).decode() + (
-                f"\nwindow.__M4ML_TOKEN__={json.dumps(backend.token)};window.__M4ML_DESKTOP__=true;"
-                "window.m4mlReady=new Promise(function(res){new QWebChannel(qt.webChannelTransport,function(c){window.m4ml=c.objects.m4ml;res(window.m4ml);});});"
-            )
+            boot = bootstrap_script(backend.url, backend.token, bytes(f.readAll()).decode())
             script = QWebEngineScript()
             script.setName("m4ml-bootstrap")
             script.setSourceCode(boot)
