@@ -150,7 +150,7 @@ def main():
         )
         files = {
             p.relative_to(app).as_posix(): digest(p)
-            for p in app.rglob("*")
+            for p in sorted(app.rglob("*"))
             if p.is_file()
         }
         assert not any(

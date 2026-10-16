@@ -32,6 +32,7 @@ ap.add_argument("--count", type=int, default=24)
 ap.add_argument("--fixture", type=Path, required=True)
 ap.add_argument("--output", type=Path, required=True)
 ap.add_argument("--iterations", type=int, default=6000)
+ap.add_argument("--mesh-res", type=int, default=512, choices=(256, 512, 1024))
 ap.add_argument("--only", default="ABC")
 a = ap.parse_args()
 c = httpx.Client(base_url=a.url, timeout=600)
@@ -148,7 +149,7 @@ def verify_downloads(pid, d):
 
 def train_with_pause(pid):
     out = {}
-    post(f"/projects/{pid}/jobs/train", {"gpu": 0, "iterations": a.iterations, "mesh_res": 512, "confirmed": True})
+    post(f"/projects/{pid}/jobs/train", {"gpu": 0, "iterations": a.iterations, "mesh_res": a.mesh_res, "confirmed": True})
     t0 = time.monotonic()
     while True:  # wait past the first checkpoint (2,500) and pause
         d = doc(pid)
@@ -163,7 +164,7 @@ def train_with_pause(pid):
     d = wait(pid, "train", allow_states=("cancelled",))
     out["partial"] = d.get("training_partial")
     assert d["training_partial"]["checkpoint"] == 2500, d.get("training_partial")
-    post(f"/projects/{pid}/jobs/train", {"gpu": 0, "iterations": a.iterations, "mesh_res": 512, "confirmed": True, "resume": True})
+    post(f"/projects/{pid}/jobs/train", {"gpu": 0, "iterations": a.iterations, "mesh_res": a.mesh_res, "confirmed": True, "resume": True})
     d = wait(pid, "train")
     out["resumed_from"] = d["training"].get("resumed_from")
     out["gaussians"] = d["training"]["gaussians"]

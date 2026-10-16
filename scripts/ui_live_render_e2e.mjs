@@ -155,6 +155,13 @@ if (other) {
   check("project switch time", true, `${Date.now() - tSwitch} ms to first frame`);
 }
 check("zero console errors", errors.length === 0, errors.slice(0, 3).join(" | "));
+// Closing a browser page does not run React unmount effects. Explicitly release
+// only this test's renderer sessions before browser shutdown.
+for (const id of [project, other].filter(Boolean)) {
+  await api(`/projects/${id}/live-render/stop`, "POST");
+  const status = await api(`/projects/${id}/live-render`);
+  check(`renderer released after QA ${id}`, !status.session);
+}
 const pass = checks.every((c) => c.ok);
 fs.writeFileSync(`${out}/result.json`, JSON.stringify({ pass, checks, errors }, null, 2));
 console.log(JSON.stringify({ pass, failed: checks.filter((c) => !c.ok), total: checks.length }));
