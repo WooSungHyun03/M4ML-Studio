@@ -1,0 +1,19 @@
+diff --git a/sam3/model/sam3_base_predictor.py b/sam3/model/sam3_base_predictor.py
+index 33ccf8c..f230305 100644
+--- a/sam3/model/sam3_base_predictor.py
++++ b/sam3/model/sam3_base_predictor.py
+@@ -154,6 +154,14 @@ class Sam3BasePredictor:
+             init_kwargs["async_loading_frames"] = self.async_loading_frames
+         if hasattr(self, "video_loader_type"):
+             init_kwargs["video_loader_type"] = self.video_loader_type
++        # SAM 3.1's multiplex init_state does not accept this SAM 3 option.
++        # Reject requested offload instead of silently pretending it is supported.
++        import inspect
++
++        if "offload_state_to_cpu" not in inspect.signature(self.model.init_state).parameters:
++            if offload_state_to_cpu:
++                raise ValueError("This predictor does not support offload_state_to_cpu")
++            init_kwargs.pop("offload_state_to_cpu")
+         inference_state = self.model.init_state(**init_kwargs)
+ 
+         if not session_id:

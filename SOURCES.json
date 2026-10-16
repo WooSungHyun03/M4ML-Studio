@@ -1,0 +1,46 @@
+{
+  "object_aware": {
+    "url": "https://github.com/WooSungHyun03/object-aware-loss.git",
+    "revision": "3221821b165865dc77b7636598e55675043b87f4",
+    "files_sha256": {
+      "train.py": "23c964d4f5720b9da55d84410e9125d6d6169cd5b1c7e9c24dd09a3f7cb8258f",
+      "render.py": "eb374ed246ff8852f4b9b1154fafd1205c26cf1a006893295254f524cc9946c8",
+      "environment.yml": "95275f597910602c7e708fde6ee5a1bf787659512c04e2a2fa19d91f8e6e5bf5",
+      "arguments/__init__.py": "bd54e2a81ef6a48217e25f1a6875fa7b8687682a00d0eb25382871a9e8855f82",
+      "scene/gaussian_model.py": "058f5923f695d5cbd1afdceaaaa09084cf93482269c11e02de4ba2c482cc1b0f",
+      "scene/dataset_readers.py": "ae78091c6864c3c8bd66764546b41083052128f9cc7a33c6c3acc1104fb0ab87",
+      "utils/loss_utils.py": "2cdf0291d4ce35d88c3f47b4031a8cba9da450db3e888d48c3ca76da609f1ecb",
+      "gaussian_renderer/__init__.py": "c29514499e852f883524e617887a8ee9f8226d86dbeaaff454d5573a7f819e28",
+      "LICENSE.md": "cd5c95b3cfff3acc1bd412420c770f88809331c3db6872df11a970147aa8e81f"
+    }
+  },
+  "sam31": {
+    "url": "https://github.com/facebookresearch/sam3.git",
+    "revision": "7f473cfd983d5eb43040ff608f66bff0d7bdcb53",
+    "patches": [
+      {
+        "path": "patches/sam3/0001-session-init-option.patch",
+        "sha256": "e0c4302d67c5bf1d7905f2553e4ba2ce6b5d3b15704509234c1a08975db25662"
+      },
+      {
+        "path": "patches/sam3/0002-first-point-output.patch",
+        "sha256": "8697d528365b83c865ae85182671b26a3b883b89f77e8b63ea04bf0168e46563"
+      },
+      {
+        "path": "patches/sam3/0003-anchor-numpy-metadata.patch",
+        "sha256": "2a4fc2ea5be2f299f942ddf29c7963286a60a9cf85d7ad73063b80a9d5660347"
+      }
+    ]
+  },
+  "checkpoint": {
+    "filename": "sam3.1_multiplex.pt",
+    "bytes": 3502755717,
+    "sha256": "0567debeec80ba4ac6369540c6c248025283cb3ff2b92827509e57e2b3541cb6",
+    "tensor_count": 1623
+  },
+  "native_modules": {
+    "diff_surfel_rasterization": "e0ed0207b3e0669960cfad70852200a4a5847f61",
+    "simple_knn": "86710c2d4b46680c02301765dd79e465819c8f19",
+    "glm": "5c46b9c07008ae65cb81ab79cd677ecc1934b903"
+  }
+}

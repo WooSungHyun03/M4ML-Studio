@@ -12,3 +12,23 @@ data
 eval
 *.npz
 **/tmp
+
+# Studio local runtime, private data and model weights
+.runtime/
+models/
+datasets/
+projects/
+evidence/
+.env*
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.sqlite*
+*.db
+*.log
+*.glb
+node_modules/
+frontend/dist/
+.pytest_cache/
+*.tsbuildinfo
