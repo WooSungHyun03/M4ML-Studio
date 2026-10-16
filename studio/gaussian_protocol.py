@@ -70,8 +70,12 @@ class RemoteRendererClient:
 
     def __init__(self, host: str, port: int, timeout: float = 30.0):
         self.sock = socket.create_connection((host, port), timeout=timeout)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.render_items: list[str] = self._read_json()
+        try:
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.render_items: list[str] = self._read_json()
+        except BaseException:
+            self.close()
+            raise
 
     def _read_exact(self, n: int) -> bytes:
         buf = bytearray(n)

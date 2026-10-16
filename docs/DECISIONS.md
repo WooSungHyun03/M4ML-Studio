@@ -183,3 +183,8 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
   - stdin-EOF and owner watchdog.
 - **Provider:** `RenderingProvider`, isolated in `render_gaussian_remote.py`.
 - Full evidence: `docs/GAUSSIAN_VIEWER_INTEGRATION.md`.
+
+### ADR-022: Own renderer resources throughout startup (2026-10-16)
+- Observed real child surviving provider handshake failure before registration in `_sessions`. Failure cleanup must not depend on Python garbage collection or session reaper membership.
+- Initialise ownership before acquisition; close on all startup exceptions, preserving interruptions and translating ordinary failures to `LiveRenderError`. Close partial sockets and reap owned children. Original renderer, GPU runtime, provider protocol and model formats remain unchanged.
+- Evidence: four real CPU child/lock/socket tests,80 Python, actual CUDA model-load failure/retry and21 browser checks (`quality-harness/state/EVIDENCE.md`, E-002).

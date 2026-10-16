@@ -51,37 +51,43 @@ class _Session:
 
         self.device, self.project_id, self.model, self.idle = device, project_id, model, idle
         self.provider = provider("rendering")
+        # Initialise ownership before acquiring anything: failures can happen at every
+        # step, including opening the log, Popen and the provider handshake.
+        self.proc = self.log = self.client = self.external = None
+        self.io = threading.Lock()
+        self.frames = 0
+        self.last_used = time.monotonic()
         self.lock = gpu_lock.try_acquire(device)
         if self.lock is None:
             raise LiveRenderError("다른 GPU 작업이 실행 중입니다. 작업이 끝난 뒤 다시 시도하세요.", "busy")
-        env = os.environ.copy()
-        env.update(CUDA_VISIBLE_DEVICES=str(device), OMP_NUM_THREADS="4", PYTHONUNBUFFERED="1")
-        env["STUDIO_OWNER_PID"] = str(os.getpid())
-        env["STUDIO_OWNER_START"] = Path(f"/proc/{os.getpid()}/stat").read_text().split()[21]
-        log.parent.mkdir(parents=True, exist_ok=True)
-        self.log_path = log
-        self.log = log.open("a")
-        self.started = time.monotonic()
-        self.proc = subprocess.Popen(
-            self.provider.server_command(model), cwd=ROOT, env=env, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1, start_new_session=True,
-        )
-        self.io = threading.Lock()
-        self.client = None
-        self.external = None
-        self.frames = 0
-        self.last_used = time.monotonic()
-        ready = self._read_ready(timeout=300)
-        if not ready.get("ready"):
-            err = ready.get("error") or "렌더러를 시작하지 못했습니다."
+        try:
+            env = os.environ.copy()
+            env.update(CUDA_VISIBLE_DEVICES=str(device), OMP_NUM_THREADS="4", PYTHONUNBUFFERED="1")
+            env["STUDIO_OWNER_PID"] = str(os.getpid())
+            env["STUDIO_OWNER_START"] = Path(f"/proc/{os.getpid()}/stat").read_text().split()[21]
+            log.parent.mkdir(parents=True, exist_ok=True)
+            self.log_path = log
+            self.log = log.open("a")
+            self.started = time.monotonic()
+            self.proc = subprocess.Popen(
+                self.provider.server_command(model), cwd=ROOT, env=env, stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1, start_new_session=True,
+            )
+            ready = self._read_ready(timeout=300)
+            if not ready.get("ready"):
+                err = ready.get("error") or "렌더러를 시작하지 못했습니다."
+                if ready.get("oom") or _oom(err):
+                    raise LiveRenderError("실시간 렌더에 필요한 GPU 메모리가 부족합니다. 다른 GPU 프로그램을 종료한 뒤 다시 시도하세요.", "out_of_memory")
+                raise LiveRenderError("렌더러를 시작하지 못했습니다: " + err)
+            self.info = ready
+            self.load_seconds = round(time.monotonic() - self.started, 2)
+            self.client = self.provider.connect(ready["port"])
+            self.modes = self.provider.modes(self.client.render_items)
+        except BaseException as exc:
             self.close()
-            if ready.get("oom") or _oom(err):
-                raise LiveRenderError("실시간 렌더에 필요한 GPU 메모리가 부족합니다. 다른 GPU 프로그램을 종료한 뒤 다시 시도하세요.", "out_of_memory")
-            raise LiveRenderError("렌더러를 시작하지 못했습니다: " + err)
-        self.info = ready
-        self.load_seconds = round(time.monotonic() - self.started, 2)
-        self.client = self.provider.connect(ready["port"])
-        self.modes = self.provider.modes(self.client.render_items)
+            if isinstance(exc, LiveRenderError) or not isinstance(exc, Exception):
+                raise
+            raise LiveRenderError("실시간 렌더를 시작하지 못했습니다. 다시 연결하세요. 상세: " + str(exc)) from exc
 
     def _read_ready(self, timeout):
         box = {}
@@ -110,7 +116,7 @@ class _Session:
         return box
 
     def alive(self):
-        return self.proc.poll() is None
+        return self.proc is not None and self.proc.poll() is None
 
     def frame(self, camera: dict, encoding: str):
         from PIL import Image
@@ -170,11 +176,12 @@ class _Session:
                 self.external.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.external.kill()
+                self.external.wait()
         if self.client is not None:
             self.client.close()
             self.client = None
         try:
-            if self.proc.poll() is None:
+            if self.alive():
                 try:
                     self.proc.stdin.close()  # renderer exits on stdin EOF
                     self.proc.wait(timeout=10)
@@ -186,7 +193,12 @@ class _Session:
                         self.proc.kill()
                         self.proc.wait()
         finally:
-            self.log.close()
+            if self.proc is not None:
+                for stream in (self.proc.stdin, self.proc.stdout):
+                    if stream is not None and not stream.closed:
+                        stream.close()
+            if self.log is not None:
+                self.log.close()
             if self.lock:
                 self.lock.close()
                 self.lock = None

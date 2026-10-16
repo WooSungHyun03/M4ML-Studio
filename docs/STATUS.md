@@ -1,7 +1,7 @@
 # Implementation status — update after EVERY loop
 
 **Initialized:** 2026-10-15 (documentation generated remotely; **no user-host GPU execution performed**)
-**Current gate:** M4ML Studio0.3 technical verification COMPLETE on the documented host; public/commercial redistribution BLOCKED
+**Current gate:** M4ML Studio0.5 quality harness audit in progress; earlier0.3 evidence preserved; public/commercial redistribution BLOCKED. Current handoff: `quality-harness/state/STATUS.md`.
 **Overall status:** INTERNAL RESEARCH BUILD — technical GPU/browser/clean-user/final-archive tests PASS. Public/commercial release is BLOCKED by unresolved licensing duties; other hardware/desktop-study limits remain NOT TESTED (see M4ML_STUDIO_RELEASE_STATUS.md).
 **Workspace:** `/home/m4ml/Desktop/Object-Aware`
 
@@ -374,3 +374,9 @@ Request: "2DGS SIBR Gaussian Viewer 통합". Full record: `docs/GAUSSIAN_VIEWER_
   - WebSocket/streamed transport if HiDPI still frames (~150 ms) matter;
   - optional auth handshake for the loopback renderer;
   - Wayland verification.
+
+### Quality harness loop H1 — failed renderer startup recovery (2026-10-16)
+- Actual source0.5.0/769d20a supersedes initial harness0.4 report. Baseline76 Python/4 frontend/type+build PASS; current installed8765 remains0.3 and was not changed. New branch `codex/quality-harness-recovery`; supplied harness and expectedSAM patches preserved.
+- Reproduced failed connection leaving real child alive/lock ResourceWarning. Fixed partial-start ownership, process/socket/pipe/log/lock cleanup and actionable startup error. Four new real CPU process/lock/socket tests, full80 Python PASS.
+- Actual RTX4080 failure after original437838-Gaussian model load → child reaped/lock reacquired → retry/five modes/repeated close PASS. Original manifest/Gaussian hashes unchanged. Browser live-render21 PASS/console0 on copied test projects; not new training/nativeQt evidence. Logs `evidence/quality-harness/`, current handoff and commands `quality-harness/state/{STATUS,NEXT_ACTION,EVIDENCE}.md`.
+- Next raw-protocol input validation; native dialogs/clean0.5 install/Wayland and legal release gates remain open. No push/package change.
