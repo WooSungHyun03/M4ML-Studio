@@ -7,13 +7,23 @@ export const stages: Stage[] = [
   "train",
   "mesh",
 ];
+// User-facing capability names. Engine/model names (COLMAP, SAM, Object-Aware…)
+// appear only in Settings › 고급 정보, so engines can be replaced without UI changes.
 export const titles: Record<Stage, string> = {
-  import: "이미지 불러오기",
-  colmap: "COLMAP 재구성",
-  sam: "SAM 3.1 마스크 생성",
-  review: "마스크 확인·수정",
-  train: "Object-Aware 학습",
-  mesh: "Object Mesh 확인",
+  import: "이미지",
+  colmap: "카메라 정합",
+  sam: "마스크 생성",
+  review: "마스크 검토",
+  train: "3D 재구성",
+  mesh: "3D 모델 보기",
+};
+export const subtitles: Record<Stage, string> = {
+  import: "여러 시점에서 촬영한 사진",
+  colmap: "카메라 위치와 자세 추정",
+  sam: "대표 사진에서 객체를 클릭하세요",
+  review: "마스크를 확인하고 필요하면 클릭으로 수정",
+  train: "객체 중심 3D 재구성 학습",
+  mesh: "색상이 입혀진 3D 모델",
 };
 export const states: Record<string, string> = {
   pending: "대기",
@@ -31,6 +41,7 @@ export interface MaskData {
   generated_path?: string;
   valid: boolean;
   status: string;
+  source?: string;
   sha256: string;
   coverage?: number;
   warnings?: string[];
@@ -54,6 +65,14 @@ export interface Photo {
   path: string;
 }
 export interface Project {
+  input_mode?: "images" | "colmap" | "colmap_masks" | "mesh";
+  stage_provenance?: Partial<
+    Record<
+      Stage,
+      { stage_source: string; stage_state: string; skip_reason: string }
+    >
+  >;
+  updated?: string;
   project_path?: string;
   archived?: boolean;
   id: string;
@@ -66,7 +85,26 @@ export interface Project {
   jobs?: Job[];
   scene?: string;
   import_errors: { name: string; error: string }[];
-  preview?: { reference: string; path: string };
+  live_prompt?: {
+    reference: string;
+    session_id: string;
+    prompt_revision: number;
+    status: string;
+    error?: string;
+    seconds?: number;
+    points: number[][];
+    labels: number[];
+  };
+  preview?: {
+    reference: string;
+    path: string;
+    session_id?: string;
+    prompt_revision?: number;
+    project_id?: string;
+    frame_id?: string;
+    coverage?: number;
+    area?: number;
+  };
   prompt?: { reference: string; points: number[][]; labels: number[] };
   colmap_report?: {
     registered: number;
@@ -75,6 +113,12 @@ export interface Project {
     verified_pairs: number;
     selected_component: string;
     components: Record<string, string[]>;
+    engine?: {
+      version?: string;
+      cuda_build?: boolean;
+      gpu_requested?: boolean;
+      steps?: { step: string; gpu_requested: boolean; gpu_observed?: boolean; gpu_peak_mb?: number }[];
+    };
     images: {
       name: string;
       features_extracted: boolean;
@@ -84,15 +128,42 @@ export interface Project {
       reason: string;
     }[];
   };
-  training?: { iterations: number; gaussians: number; path: string };
-  mesh?: { path: string; vertices: number; triangles: number };
+  training?: { iterations: number; gaussians: number; path: string; resumed_from?: number | null };
+  training_partial?: { path: string; checkpoint: number; iterations: number; time: string };
+  mesh?: {
+    path: string;
+    vertices: number;
+    triangles: number;
+    iterations?: number;
+    mesh_res?: number;
+    source_name?: string;
+    preview_name?: string;
+    colors?: boolean;
+    color?: { present: boolean };
+    bytes?: number;
+  };
 }
 export interface Health {
-  gpus: { index: number; name: string; total_mb: number; free_mb: number }[];
+  gpus: {
+    index: number;
+    name: string;
+    total_mb: number;
+    free_mb: number;
+    driver?: string;
+    uuid?: string;
+  }[];
   gpu_error: string | null;
-  colmap: boolean;
+  colmap: { available: boolean; gpu: boolean; origin?: string; error?: string };
   disk_free: number;
+  version?: string;
   checkpoint_exists: boolean;
+  runtime_status?: {
+    torch?: string;
+    cuda?: string;
+    available?: boolean;
+    error?: string;
+    anchor_ok?: boolean;
+  };
 }
 let token = "";
 async function auth() {

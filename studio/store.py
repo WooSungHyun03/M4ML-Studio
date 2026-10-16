@@ -28,8 +28,13 @@ def now():
 
 
 def data_root():
-    return Path(
-        os.environ.get("STUDIO_DATA", Path.home() / ".local/share/object-aware-studio")
+    if os.environ.get("STUDIO_DATA"):
+        return Path(os.environ["STUDIO_DATA"]).expanduser().resolve()
+    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    legacy = base / "object-aware-studio"
+    # Preserve existing installations in-place; new users get branded XDG storage.
+    return (
+        legacy if (legacy / "studio.sqlite").exists() else base / "m4ml-studio"
     ).resolve()
 
 
@@ -43,6 +48,25 @@ class Store:
     def __init__(self, root=None):
         self.root = Path(root or data_root()).resolve()
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Snapshot once per release before opening existing state; retain older backups.
+        from studio.config import VERSION
+        db_file = self.root / "studio.sqlite"
+        backup = self.root / f"backups/pre-m4ml-{VERSION}.sqlite"
+        if db_file.exists() and not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            import tempfile
+
+            fd, temp = tempfile.mkstemp(prefix=".database-", dir=backup.parent)
+            os.close(fd)
+            try:
+                with sqlite3.connect(db_file) as source, sqlite3.connect(
+                    temp
+                ) as destination:
+                    source.backup(destination)
+                os.replace(temp, backup)
+            finally:
+                if os.path.exists(temp):
+                    os.unlink(temp)
         with self.db() as db:
             db.executescript(
                 """
@@ -339,5 +363,18 @@ class Store:
                 report = validate_mesh(mesh / "fuse_post.ply")
                 if report["sha256"] != p["mesh"]["sha256"]:
                     raise ValueError("메시 파일이 변경되었습니다.")
+                if p["mesh"].get("exporter_version", 0) < 3:
+                    # Preserve legacy GLB; write a corrected portable color preview beside it.
+                    report = validate_mesh(mesh / "fuse_post.ply", mesh / "color-v3")
+                    self.update(
+                        project_id,
+                        lambda doc: doc["mesh"].update(
+                            {
+                                **report,
+                                "preview_name": "color-v3/preview.glb",
+                                "preview_color_version": 3,
+                            }
+                        ),
+                    )
             except Exception as exc:
                 fail("mesh", f"메시 결과 검증에 실패했습니다: {exc}")

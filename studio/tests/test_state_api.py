@@ -237,6 +237,12 @@ class StateAndAPITests(unittest.TestCase):
         self.assertEqual(p["stages"]["train"], "pending")
         self.assertEqual(p["stages"]["mesh"], "pending")
         self.assertEqual(p["masks"]["000001.png"]["status"], "manual")
+        confirmed = self.client.put(
+            self.url + "/masks/000001.png", json={"approve": True}, headers=self.headers
+        )
+        self.assertEqual(confirmed.status_code, 200)
+        self.assertEqual(confirmed.json()["masks"]["000001.png"]["status"], "manual")
+        self.assertEqual(confirmed.json()["masks"]["000001.png"]["sha256"], p["masks"]["000001.png"]["sha256"])
         self.assertNotIn("error", p["masks"]["000001.png"])
         with Image.open(self.root / p["masks"]["000001.png"]["path"]) as saved:
             self.assertEqual(saved.mode, "L")

@@ -1,0 +1,490 @@
+{
+  "schema": 1,
+  "colmap_commit": "bd1fcf654d2dd8fefa1466999c190a246f83f4b9",
+  "libraries": [
+    {
+      "library": "libGLEW.so.2.2",
+      "sha256": "221a0ff4a283f68befb38225aba8d0eba06c81cc3c76771b4e272b1a34618c1f",
+      "build_packages": [
+        "libglew2.2:amd64 2.2.0-4build1 source=glew 2.2.0-4build1"
+      ],
+      "notices": [
+        "libglew2.2_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libIex-3_1.so.30",
+      "sha256": "39c2cfed57831eb6a17f4a41ee265b28c56f1b84290864cf5e67d0129f6424a4",
+      "build_packages": [
+        "libopenexr-3-1-30:amd64 3.1.5-5.1build3 source=openexr 3.1.5-5.1build3"
+      ],
+      "notices": [
+        "libopenexr-3-1-30_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libIlmThread-3_1.so.30",
+      "sha256": "abd64c3177909348351c97e9f33ec7c9d323fc4875c7ada86485a4d349dbd70a",
+      "build_packages": [
+        "libopenexr-3-1-30:amd64 3.1.5-5.1build3 source=openexr 3.1.5-5.1build3"
+      ],
+      "notices": [
+        "libopenexr-3-1-30_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libImath-3_1.so.29",
+      "sha256": "bf43be859e0b4188c2943e3f26fc88dafed6cbb6e1ba6c738655b8fb686fd2ab",
+      "build_packages": [
+        "libimath-3-1-29t64:amd64 3.1.9-3.1ubuntu2 source=imath 3.1.9-3.1ubuntu2"
+      ],
+      "notices": [
+        "libimath-3-1-29t64_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libLerc.so.4",
+      "sha256": "8935823c3738f9e4719e31159f39995a9069af8cea7499233f732cb2764887bb",
+      "build_packages": [
+        "liblerc4:amd64 4.0.0+ds-4ubuntu2 source=lerc 4.0.0+ds-4ubuntu2"
+      ],
+      "notices": [
+        "liblerc4_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libOpenEXR-3_1.so.30",
+      "sha256": "8a26d62150fe3833b6d0133f4ac6be564239f404a4d9d1111d19242c5df002d7",
+      "build_packages": [
+        "libopenexr-3-1-30:amd64 3.1.5-5.1build3 source=openexr 3.1.5-5.1build3"
+      ],
+      "notices": [
+        "libopenexr-3-1-30_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libOpenEXRCore-3_1.so.30",
+      "sha256": "feace38c24c90fd7d897ac9c312e2f0f7ff81ed84ff9b8b1e5f488566f3309db",
+      "build_packages": [
+        "libopenexr-3-1-30:amd64 3.1.5-5.1build3 source=openexr 3.1.5-5.1build3"
+      ],
+      "notices": [
+        "libopenexr-3-1-30_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libOpenImageIO.so.2.5",
+      "sha256": "2c13438ee99d2c04a6e3df5a89d6f945d41215f598c313597f692d0d4cc253f4",
+      "build_packages": [
+        "OpenImageIO 2.5.19.1 f32bf6e6f8de38ab6d197a72fd72366b66fd30a3 (custom minimal build)"
+      ],
+      "notices": [
+        "OpenImageIO-LICENSE.md"
+      ]
+    },
+    {
+      "library": "libOpenImageIO_Util.so.2.5",
+      "sha256": "95d0ae71145e1dbad17613b380139fe54f74aeb4d6865ec6810d804f31dfa66e",
+      "build_packages": [
+        "OpenImageIO 2.5.19.1 f32bf6e6f8de38ab6d197a72fd72366b66fd30a3 (custom minimal build)"
+      ],
+      "notices": [
+        "OpenImageIO-LICENSE.md"
+      ]
+    },
+    {
+      "library": "libXau.so.6",
+      "sha256": "4eba4b71698b1b95faaab69049fd683ede61ac34d978f74718ab5f04ae038443",
+      "build_packages": [
+        "libxau6:amd64 1:1.0.9-1build6 source=libxau 1:1.0.9-1build6"
+      ],
+      "notices": [
+        "libxau6_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libXdmcp.so.6",
+      "sha256": "d780344bdc3ba3ab418120c190a4d987f327cf731f8c0741d66c593a83ecff3b",
+      "build_packages": [
+        "libxdmcp6:amd64 1:1.1.3-0ubuntu6 source=libxdmcp 1:1.1.3-0ubuntu6"
+      ],
+      "notices": [
+        "libxdmcp6_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libamd.so.3",
+      "sha256": "242ddc8b1812397afccec6c435f099b7acbd477ab12534e3c84a84386032cfa4",
+      "build_packages": [
+        "libamd3:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libamd3_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libblas.so.3",
+      "sha256": "8ba4a98f44d763c2e648755ef452025919e28633339f23ff605044de3483a25d",
+      "build_packages": [
+        "libblas3:amd64 3.12.0-3build1.1 source=lapack 3.12.0-3build1.1",
+        "libopenblas0-pthread:amd64 0.3.26+ds-1ubuntu0.1 source=openblas 0.3.26+ds-1ubuntu0.1"
+      ],
+      "notices": [
+        "libblas3_amd64-copyright",
+        "libopenblas0-pthread_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libboost_filesystem.so.1.83.0",
+      "sha256": "bb84a66323ccc6df032f8e60471616482cf713a9bf62520bf34d7dc589940c38",
+      "build_packages": [
+        "libboost-filesystem1.83.0:amd64 1.83.0-2.1ubuntu3.1 source=boost1.83 1.83.0-2.1ubuntu3.1"
+      ],
+      "notices": [
+        "libboost-filesystem1.83.0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libboost_program_options.so.1.83.0",
+      "sha256": "ebc5519b0381377de69e2c747ff657dd73782ba352fe1f8e2ce19aecfc5b53d4",
+      "build_packages": [
+        "libboost-program-options1.83.0:amd64 1.83.0-2.1ubuntu3.1 source=boost1.83 1.83.0-2.1ubuntu3.1"
+      ],
+      "notices": [
+        "libboost-program-options1.83.0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libboost_thread.so.1.83.0",
+      "sha256": "b6bcbd1c162327d16a41ca53b4af0c8ea4a9d45d306a426eff40eaabe73e175a",
+      "build_packages": [
+        "libboost-thread1.83.0:amd64 1.83.0-2.1ubuntu3.1 source=boost1.83 1.83.0-2.1ubuntu3.1"
+      ],
+      "notices": [
+        "libboost-thread1.83.0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libbsd.so.0",
+      "sha256": "a708b1bc0af5b0b7de6511cb627ec91c383c679312e94b2540f01b5f478801da",
+      "build_packages": [
+        "libbsd0:amd64 0.12.1-1build1.1 source=libbsd 0.12.1-1build1.1"
+      ],
+      "notices": [
+        "libbsd0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libcamd.so.3",
+      "sha256": "5324f4256e1b27bb68c1b6d3178cc2ba57ea4fbb77ecc3021902ad04f03440fe",
+      "build_packages": [
+        "libcamd3:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libcamd3_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libccolamd.so.3",
+      "sha256": "722311b0c9d074c97c6d3e5b651e9006e248da181293a7ba62b86d8d79df83fb",
+      "build_packages": [
+        "libccolamd3:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libccolamd3_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libceres.so.4",
+      "sha256": "04388fa29b1fc3e13337dcda05a5ddf5abd49c384cebf471025b930b0134fccf",
+      "build_packages": [
+        "libceres4t64:amd64 2.2.0+dfsg-4.1ubuntu2 source=ceres-solver 2.2.0+dfsg-4.1ubuntu2"
+      ],
+      "notices": [
+        "libceres4t64_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libcholmod.so.5",
+      "sha256": "f72594b896387b607d6c885ae9f1d73f19a419cde5e1d1c04c1b8f804c0c68eb",
+      "build_packages": [
+        "libcholmod5:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libcholmod5_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libcolamd.so.3",
+      "sha256": "2c50410c2e57b719fd797106e291bb98771f02fd737c948ef93b3c27e0127456",
+      "build_packages": [
+        "libcolamd3:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libcolamd3_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libcudart.so.12",
+      "sha256": "2843f62f6f29b6f0e3fb130015c335bd25c643420f27f0727bff369736526bce",
+      "build_packages": [
+        "conda-forge cuda-cudart 12.6.77 h5888daf_0"
+      ],
+      "notices": [
+        "CUDA-12.6-EULA"
+      ]
+    },
+    {
+      "library": "libdeflate.so.0",
+      "sha256": "c70863488187333a652c909217d109536ab902a74f5b0f6e4773a2725d0985c0",
+      "build_packages": [
+        "libdeflate0:amd64 1.19-1build1.1 source=libdeflate 1.19-1build1.1"
+      ],
+      "notices": [
+        "libdeflate0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libgcc_s.so.1",
+      "sha256": "e86b5e0dca050dcb9beeb639de200fade0c0b475f9f0a52f142614b0f205d9ba",
+      "build_packages": [
+        "libgcc-s1:amd64 14.2.0-4ubuntu2~24.04.1 source=gcc-14 14.2.0-4ubuntu2~24.04.1"
+      ],
+      "notices": [
+        "libgcc-s1_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libgflags.so.2.2",
+      "sha256": "724d82c9f8fa2fb21344b077a2011ef47f2131192cfb79854e1da78384282781",
+      "build_packages": [
+        "libgflags2.2 2.2.2-2build1 source=gflags 2.2.2-2build1"
+      ],
+      "notices": [
+        "libgflags2.2-copyright"
+      ]
+    },
+    {
+      "library": "libgfortran.so.5",
+      "sha256": "6540354cdce6f9f3815e1c59b8bb44b2c99be32cde83b052f2d975f914d72f71",
+      "build_packages": [
+        "libgfortran5:amd64 14.2.0-4ubuntu2~24.04.1 source=gcc-14 14.2.0-4ubuntu2~24.04.1"
+      ],
+      "notices": [
+        "libgfortran5_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libglog.so.1",
+      "sha256": "baa355be642c15c8c8f465f1356135b5238b17aa1e38fcf0de4450f169550b72",
+      "build_packages": [
+        "libgoogle-glog0v6t64 0.6.0-2.1build1 source=google-glog 0.6.0-2.1build1"
+      ],
+      "notices": [
+        "libgoogle-glog0v6t64-copyright"
+      ]
+    },
+    {
+      "library": "libgomp.so.1",
+      "sha256": "6098b0b531e43fb5f2d49822aa5c12315b598d6bcb2a6e6efb757bcddcd3a475",
+      "build_packages": [
+        "libgomp1:amd64 14.2.0-4ubuntu2~24.04.1 source=gcc-14 14.2.0-4ubuntu2~24.04.1"
+      ],
+      "notices": [
+        "libgomp1_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libjbig.so.0",
+      "sha256": "d868b6b5789c768dd7a6720bf115053d79e79803343c916654870075dc80e1ca",
+      "build_packages": [
+        "libjbig0:amd64 2.1-6.1ubuntu2 source=jbigkit 2.1-6.1ubuntu2"
+      ],
+      "notices": [
+        "libjbig0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libjpeg.so.8",
+      "sha256": "181b43470eba7411fd06196537d2ef4a5915a9b70f072848c31c81ba5bfb490b",
+      "build_packages": [
+        "libjpeg-turbo8:amd64 2.1.5-2ubuntu2 source=libjpeg-turbo 2.1.5-2ubuntu2"
+      ],
+      "notices": [
+        "libjpeg-turbo8_amd64-copyright"
+      ]
+    },
+    {
+      "library": "liblapack.so.3",
+      "sha256": "1e82245607c58d13405580c71b9b0134b5a952686ac861f979fc7a886ebd4229",
+      "build_packages": [
+        "libopenblas0-pthread:amd64 0.3.26+ds-1ubuntu0.1 source=openblas 0.3.26+ds-1ubuntu0.1",
+        "liblapack3:amd64 3.12.0-3build1.1 source=lapack 3.12.0-3build1.1"
+      ],
+      "notices": [
+        "libopenblas0-pthread_amd64-copyright",
+        "liblapack3_amd64-copyright"
+      ]
+    },
+    {
+      "library": "liblzma.so.5",
+      "sha256": "a3f09d27438f1082f1bef259d70d5c98c61815a54c599f388b11a2742744ae50",
+      "build_packages": [
+        "liblzma5:amd64 5.6.1+really5.4.5-1ubuntu0.3 source=xz-utils 5.6.1+really5.4.5-1ubuntu0.3"
+      ],
+      "notices": [
+        "liblzma5_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libmd.so.0",
+      "sha256": "23d8811f25210548b1e65ff11ffebaa68edc8a296fac58764dfe2b2371f4daff",
+      "build_packages": [
+        "libmd0:amd64 1.1.0-2build1.1 source=libmd 1.1.0-2build1.1"
+      ],
+      "notices": [
+        "libmd0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libmetis.so.5",
+      "sha256": "4712d6aa3b9a3faf108d9f662a844e26db2c4de6720d819c5f10d7dbc250ce71",
+      "build_packages": [
+        "libmetis5:amd64 5.1.0.dfsg-7build3 source=metis 5.1.0.dfsg-7build3"
+      ],
+      "notices": [
+        "libmetis5_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libopenblas.so.0",
+      "sha256": "0136bc71e91c9c8489035459bc02d6dc2a368e4fca362b070fed7d3cd56de13e",
+      "build_packages": [
+        "libopenblas0-pthread:amd64 0.3.26+ds-1ubuntu0.1 source=openblas 0.3.26+ds-1ubuntu0.1"
+      ],
+      "notices": [
+        "libopenblas0-pthread_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libpng16.so.16",
+      "sha256": "ed1f2c87c202d617f93587fd40680e24d76952d0da9566a0a462e90d85659eff",
+      "build_packages": [
+        "libpng16-16t64:amd64 1.6.43-5ubuntu0.7 source=libpng1.6 1.6.43-5ubuntu0.7"
+      ],
+      "notices": [
+        "libpng16-16t64_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libsharpyuv.so.0",
+      "sha256": "b0ac0616afc32bcac7a29d7ac706847d7a5f23a4b1e6435c8491091f10b3276b",
+      "build_packages": [
+        "libsharpyuv0:amd64 1.3.2-0.4build3 source=libwebp 1.3.2-0.4build3"
+      ],
+      "notices": [
+        "libsharpyuv0_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libspqr.so.4",
+      "sha256": "cf255ac76596918d3f79de6d9bb36106fbbfbf17cf3b071d26c39d22a407c24e",
+      "build_packages": [
+        "libspqr4:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libspqr4_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libsqlite3.so.0",
+      "sha256": "6ff6df0ba49dd8aa6a7bc55d790181309453c955863a107343912dc95a7a8dd3",
+      "build_packages": [
+        "libsqlite3-0:amd64 3.45.1-1ubuntu2.8 source=sqlite3 3.45.1-1ubuntu2.8",
+        "nsight-compute-2025.3.1 2025.3.1.4-1 source=nsight-compute 2025.3.1.4-1"
+      ],
+      "notices": [
+        "libsqlite3-0_amd64-copyright",
+        "nsight-compute-2025.3.1-copyright"
+      ]
+    },
+    {
+      "library": "libstdc++.so.6",
+      "sha256": "7784cf4446a200f2070dd140ad3529b3eb7bc9e8afaa01177b97e280181b6aa6",
+      "build_packages": [
+        "libstdc++6:amd64 14.2.0-4ubuntu2~24.04.1 source=gcc-14 14.2.0-4ubuntu2~24.04.1",
+        "nsight-compute-2025.3.1 2025.3.1.4-1 source=nsight-compute 2025.3.1.4-1"
+      ],
+      "notices": [
+        "libstdc++6_amd64-copyright",
+        "nsight-compute-2025.3.1-copyright"
+      ]
+    },
+    {
+      "library": "libsuitesparseconfig.so.7",
+      "sha256": "e1619265d8ad8e3f04902aebc2e415c5c3f1f9d0595fb948f29c60218a334679",
+      "build_packages": [
+        "libsuitesparseconfig7:amd64 1:7.6.1+dfsg-1build1 source=suitesparse 1:7.6.1+dfsg-1build1"
+      ],
+      "notices": [
+        "libsuitesparseconfig7_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libtiff.so.6",
+      "sha256": "3d375ab157243a4996fcfd311029aee25ee6f217e67f19cf41bda486302355d2",
+      "build_packages": [
+        "libtiff6:amd64 4.5.1+git230720-4ubuntu2.5 source=tiff 4.5.1+git230720-4ubuntu2.5"
+      ],
+      "notices": [
+        "libtiff6_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libunwind.so.8",
+      "sha256": "61985d2f8713b9ed0e495e4f38947b5062a384bd441983f98d9592f3bd43f2bf",
+      "build_packages": [
+        "libunwind8:amd64 1.6.2-3build1.1 source=libunwind 1.6.2-3build1.1"
+      ],
+      "notices": [
+        "libunwind8_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libwebp.so.7",
+      "sha256": "a506654a37ff07856705a59a705a5abf6ddb9c0233da9bc4b056abe2e5207bcb",
+      "build_packages": [
+        "libwebp7:amd64 1.3.2-0.4build3 source=libwebp 1.3.2-0.4build3"
+      ],
+      "notices": [
+        "libwebp7_amd64-copyright"
+      ]
+    },
+    {
+      "library": "libz.so.1",
+      "sha256": "31a7abc87b1ef475cb0a700b8e910cb7b19f1610567655a20a8e9184bc19eadc",
+      "build_packages": [
+        "zlib1g:amd64 1:1.3.dfsg-3.1ubuntu2.2 source=zlib 1:1.3.dfsg-3.1ubuntu2.2",
+        "nsight-compute-2025.3.1 2025.3.1.4-1 source=nsight-compute 2025.3.1.4-1"
+      ],
+      "notices": [
+        "zlib1g_amd64-copyright",
+        "nsight-compute-2025.3.1-copyright"
+      ]
+    },
+    {
+      "library": "libzstd.so.1",
+      "sha256": "a9c51880108f5fa5eae337c6eff05115d11110937833724cdf90ed18def9a31f",
+      "build_packages": [
+        "libzstd1:amd64 1.5.5+dfsg2-2build1.1 source=libzstd 1.5.5+dfsg2-2build1.1",
+        "nsight-compute-2025.3.1 2025.3.1.4-1 source=nsight-compute 2025.3.1.4-1"
+      ],
+      "notices": [
+        "libzstd1_amd64-copyright",
+        "nsight-compute-2025.3.1-copyright"
+      ]
+    }
+  ],
+  "unresolved_notices": [],
+  "public_redistribution": "BLOCKED: corresponding-source/relinking and legal compatibility review pending"
+}

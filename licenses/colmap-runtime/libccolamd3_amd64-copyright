@@ -1,0 +1,476 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: SuiteSparse
+Upstream-Contact: Timothy A. Davis <davis@tamu.edu>
+Source: http://suitesparse.com
+Files-Excluded: CHOLMOD/Doc/IA3_2014_Workshop_Rennich_Stosic_Davis_preprint.pdf
+                CHOLMOD/SuiteSparse_metis/manual/manual.pdf
+                CSparse/MATLAB/ssget/Doc/MatrixMarket.pdf
+                CSparse/MATLAB/ssget/Doc/hb.pdf
+                CSparse/MATLAB/ssget/Doc/nep.pdf
+                CSparse/MATLAB/ssget/Doc/rb.pdf
+                CXSparse/MATLAB/ssget/Doc/MatrixMarket.pdf
+                CXSparse/MATLAB/ssget/Doc/hb.pdf
+                CXSparse/MATLAB/ssget/Doc/nep.pdf
+                CXSparse/MATLAB/ssget/Doc/rb.pdf
+                GraphBLAS/Doc/CSC20_OpenMP_GraphBLAS.pdf
+                GraphBLAS/Doc/Davis_HPEC18.pdf
+                GraphBLAS/Doc/GraphBLAS_API_C_v2.1.0.pdf
+                GraphBLAS/Doc/HPEC19.pdf
+                GraphBLAS/Doc/HPEC20_Python_and_MATLAB.pdf
+                GraphBLAS/Doc/lagraph-grapl19.pdf
+                GraphBLAS/Doc/The_GraphBLAS_in_Julia_and_Python_the_PageRank_and_Triangle_Centralities.pdf
+                GraphBLAS/Doc/toms_graphblas.pdf
+                GraphBLAS/Doc/toms_parallel_grb2.pdf
+                GraphBLAS/logo/GRAPHBLAS_branding_guide.pdf
+                GraphBLAS/logo/GRAPHBLAS_logo_kit.pdf
+                KLU/Doc/palamadai_e.pdf
+                LAGraph/papers/HOKE-FINALTHESIS-2022.pdf
+                LAGraph/papers/KONDURI-FINALTHESIS-2022.pdf
+                LAGraph/papers/MatrixMarket.pdf
+                LAGraph/papers/WAHEED-FINALTHESIS-2022.pdf
+                LAGraph/papers/lagraph-grapl19.pdf
+                MATLAB_Tools/Factorize/Doc/factorize_article.pdf
+                SPQR/Doc/algo_spqr.pdf
+                SPQR/Doc/qrgpu_paper.pdf
+                SPQR/Doc/spqr.pdf
+                ssget/Doc/hb.pdf
+                ssget/Doc/MatrixMarket.pdf
+                ssget/Doc/nep.pdf
+                ssget/Doc/rb.pdf
+Comment: Various PDFs are excluded because their source code is not provided.
+         Some non-free source files from NVIDIA are also excluded.
+
+Files: *
+Copyright: 1990-2024 Timothy A. Davis
+           2004-2024 University of Florida
+License: LGPL-2.1+
+
+Files: AMD/*
+Copyright: 1996-2024, Timothy A. Davis, Patrick R. Amestoy, and Iain S. Duff
+           2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: BTF/Config/BTFConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: CAMD/*
+Copyright: 1996-2024 Timothy A. Davis, Yanqing Chen, Patrick R. Amestoy, and Iain S. Duff
+License: BSD-3-clause
+
+Files: CCOLAMD/*
+Copyright: 2005-2023, Univ. of Florida
+           2005-2024, Timothy A. Davis
+           1996-2024, Timothy A. Davis, Sivasankaran Rajamanickam, and Stefan Larimore
+License: BSD-3-clause
+
+Files: CHOLMOD/Config/CHOLMODConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: CHOLMOD/Supernodal/*
+       CHOLMOD/Demo/*
+       CHOLMOD/MATLAB/*
+       CHOLMOD/MatrixOps/*
+       CHOLMOD/Tcov/*
+       CHOLMOD/Modify/*
+       CHOLMOD/GPU/*
+Copyright: 2005-2023 Timothy A. Davis
+           2005-2023, William W. Hager and Timothy A. Davis
+License: GPL-2+
+
+Files: CHOLMOD/Config/cholmod.h.in
+       CHOLMOD/Include/cholmod.h
+       CHOLMOD/Include/cholmod_internal.h
+       CHOLMOD/Include/cholmod_template.h
+       CHOLMOD/Include/cholmod_types.h
+Copyright: 2005-2023 Timothy A. Davis
+           2005-2006, Timothy A. Davis and William W. Hager
+           2005-2013, Univ. of Florida
+License: Apache-2.0
+
+Files: CHOLMOD/SuiteSparse_metis/*
+Copyright: 1995-2013, Regents of the University of Minnesota
+License: Apache-2.0
+
+Files: CHOLMOD/SuiteSparse_metis/GKlib/getopt.c
+       CHOLMOD/SuiteSparse_metis/GKlib/gk_mksort.h
+       CHOLMOD/SuiteSparse_metis/GKlib/gkregex.c
+       CHOLMOD/SuiteSparse_metis/GKlib/gkregex.h
+Copyright: 1987-2006 Free Software Foundation
+License: LGPL-2.1+
+
+Files: CHOLMOD/SuiteSparse_metis/GKlib/ms_inttypes.h
+       CHOLMOD/SuiteSparse_metis/GKlib/ms_stdint.h
+Copyright: 2006 Alexander Chemeris
+License: BSD-3-clause
+
+Files: COLAMD/*
+Copyright: 1998-2024, Timothy A. Davis and Stefan Larimore
+License: BSD-3-clause
+
+Files: CSparse/MATLAB/ssget/*
+       CXSparse/Config/CXSparseConfig.cmake.in
+       CXSparse/MATLAB/ssget/*
+Copyright: 2009-2023 Timothy A. Davis
+License: BSD-3-clause
+
+Files: Example/*
+Copyright: 2022-2024, Timothy A. Davis
+License: BSD-3-clause
+
+Files: GraphBLAS/*
+Copyright: 2017-2024 Timothy A. Davis
+           2017-2023 NVIDIA CORPORATION
+           2018-2019 BlazingDB, Inc.
+           2018 Christian Noboa Mardini <christian@blazingdb.com>
+License: Apache-2.0
+
+Files: GraphBLAS/CUDA/GB_cuda_mxm_dot3_jitFactory.hpp
+       GraphBLAS/CUDA/GB_cuda_reduce_jitFactory.hpp
+       GraphBLAS/CUDA/jitify.hpp
+       GraphBLAS/CUDA/Template/GB_cuda_atomics.cuh
+Copyright: 2011-2023 NVIDIA CORPORATION
+License: BSD-3-clause
+
+Files: GraphBLAS/CUDA/Config/GraphBLAS_CUDAConfig.cmake.in
+       GraphBLAS/Config/GraphBLASConfig.cmake.in
+       GraphBLAS/cmake_modules/SuiteSparsePolicy.cmake
+       GraphBLAS/cmake_modules/SuiteSparseAtomic.cmake
+Copyright: 2012-2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: GraphBLAS/cpu_features/*
+Copyright: 2017-2021 Google LLC
+           2018 IBM
+           2020 Intel Corporation
+License: Apache-2.0
+
+Files: GraphBLAS/cpu_features/ndk_compat/*
+Copyright: 2010 The Android Open Source Project
+License: BSD-2-clause
+
+Files: GraphBLAS/lz4/*
+       GraphBLAS/xxHash/*
+Copyright: 2011-2021 Yann Collet
+License: BSD-2-clause
+
+Files: GraphBLAS/zstd/*
+Copyright: 2016-present, Meta Platforms, Inc. and affiliates.
+License: BSD-3-clause
+
+Files: GraphBLAS/zstd/zstd_subset/common/threading.c
+       GraphBLAS/zstd/zstd_subset/common/threading.h
+Copyright: 2016 Tino Reichardt
+License: BSD-2-clause and GPL-2
+
+Files: KLU/Config/KLUConfig.cmake.in
+       KLU/Config/KLU_CHOLMODConfig.cmake.in
+Copyright: 2023-2024, Timothy A. Davis
+License: BSD-3-clause
+
+Files: LAGraph/*
+Copyright: 2019-2023 LAGraph Contributors
+License: BSD-2-clause
+
+Files: LAGraph/cmake_modules/CodeCoverage.cmake
+       LAGraph/cmake_modules/SuiteSparsePolicy.cmake
+       LAGraph/config/LAGraphConfig.cmake.in
+Copyright: 2012-2017, Lars Bilke
+           2022-2023, Timothy A. Davis
+           2019-2023, LAGraph Contributors
+License: BSD-3-clause
+
+Files: LAGraph/src/test/include/acutest.h
+Copyright: 2013-2020 Martin Mitas
+           2019 Garrett D'Amore
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ IN THE SOFTWARE.
+
+Files: LDL/Config/LDLConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: Makefile
+Copyright: 2023, Timothy A. Davis
+License: Apache-2.0
+
+Files: MATLAB_Tools/*
+Copyright: 2006-2019 Timothy A. Davis
+           Les Foster and Tim Davis
+           2008 Leslie Foster
+           2012 Leslie Foster and Timothy A. Davis
+License: BSD-3-clause
+
+Files: MATLAB_Tools/SSMULT/*
+       MATLAB_Tools/SuiteSparseCollection/*
+Copyright: 2006-2023 Timothy A. Davis
+License: GPL-2+
+
+Files: MATLAB_Tools/SuiteSparseCollection/dsxy2figxy.m
+Copyright: 2006-2007, The MathWorks, Inc
+License: BSD-2-clause
+Comment: http://www.mathworks.com/matlabcentral/fileexchange/30347-sigplot/content/sigplot/sigplot/BasicFunctions/dsxy2figxy.m
+
+Files: Mongoose/*
+Copyright: 2017-2023 Timothy A. Davis, Scott P. Kolodziej, William W. Hager, S. Nuri Yeralan
+License: GPL-3
+
+Files: Mongoose/Config/SuiteSparse_MongooseConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: ParU/*
+Copyright: 2023, Mohsen Aznaveh and Timothy A. Davis
+License: GPL-3+
+
+Files: ParU/Config/ParUConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: RBio/*
+Copyright: 2009-2023 Timothy A. Davis
+License: GPL-2+
+
+Files: RBio/Config/RBioConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: SPEX/*
+Copyright: 2019-2024 Christopher Lourenco, JinHao Chen, Erick Moreno-Centeno, and Timothy A. Davis
+License: LGPL-3+ or GPL-2+
+
+Files: SPEX/CMakeLists.txt
+       SPEX/cmake_modules/FindGMP.cmake
+       SPEX/cmake_modules/FindMPFR.cmake
+Copyright: 1996-2022, Timothy A. Davis, Patrick Amestoy, Iain Duff
+           2022-2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: SPQR/*
+Copyright: 2008-2024 Timothy A. Davis, Sanjay Ranka, Sencer Nuri Yeralan and Wissam Sid-Lakhdar
+License: GPL-2+
+
+Files: SPQR/Config/SPQRConfig.cmake.in
+       SPQR/GPUQREngine/Config/GPUQREngineConfig.cmake.in
+       SPQR/GPURuntime/Config/SuiteSparse_GPURuntimeConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: SuiteSparse_config/*
+Copyright: 2012-2024 Timothy A. Davis
+License: BSD-3-clause
+
+Files: SuiteSparse_config/cmake_modules/SuiteSparse__thread.cmake
+Copyright: 2017-2023 Timothy A. Davis
+License: Apache-2.0
+
+Files: ssget/*
+Copyright: 2009-2023 Timothy A. Davis
+License: BSD-3-clause
+
+Files: TestConfig/*
+Copyright: 2024 Timothy A. Davis
+License: BSD-3-clause
+
+Files: UMFPACK/*
+Copyright: 1995-2024, Timothy A. Davis
+License: GPL-2+
+
+Files: UMFPACK/Config/UMFPACKConfig.cmake.in
+Copyright: 2023, Timothy A. Davis
+License: BSD-3-clause
+
+Files: debian/*
+Copyright: 2006-2015 Debian Science Team
+           2013-2024 Sébastien Villemot <sebastien@debian.org>
+License: GPL-3+
+
+License: Apache-2.0
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ .
+ http://www.apache.org/licenses/LICENSE-2.0
+ .
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ implied. See the License for the specific language governing
+ .
+ On Debian systems, the complete text of the Apache
+ License, version 2.0, can be found in the file
+ `/usr/share/common-licenses/Apache-2.0'.
+
+License: BSD-2-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in
+      the documentation and/or other materials provided with the distribution
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+
+License: BSD-3-clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+     * Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+     * Neither the name of the organizations to which the authors are
+       affiliated, nor the names of its contributors may be used to endorse
+       or promote products derived from this software without specific prior
+       written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ DAMAGE.
+
+License: GPL-2
+ This program is free software: you can redistribute it and/or
+ modify it under the terms of the GNU General Public License as
+ published by the Free Software Foundation, version 2 of the
+ License.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see
+ <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License, version 2, can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
+
+License: GPL-2+
+ This program is free software: you can redistribute it and/or
+ modify it under the terms of the GNU General Public License as
+ published by the Free Software Foundation, either version 2 of
+ the License, or (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see
+ <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License, version 2, can be found in the file
+ `/usr/share/common-licenses/GPL-2'.
+
+License: GPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, version 3 of the License.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License, version 3, can be found in the file
+ `/usr/share/common-licenses/GPL-3'.
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License, version 3, can be found in the file
+ `/usr/share/common-licenses/GPL-3'.
+
+License: LGPL-2.1+
+ This library is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1 of the License, or (at
+ your option) any later version.
+ .
+ This library is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+ General Public License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public License
+ along with this library. If not, see <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License, version 2.1, can be found in the file
+ `/usr/share/common-licenses/LGPL-2.1'.
+
+License: LGPL-3+
+ This library is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or (at
+ your option) any later version.
+ .
+ This library is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser
+ General Public License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public License
+ along with this library. If not, see <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License, version 3, can be found in the file
+ `/usr/share/common-licenses/LGPL-3'.

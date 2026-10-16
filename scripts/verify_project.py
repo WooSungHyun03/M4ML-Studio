@@ -65,7 +65,9 @@ def main():
     import trimesh
 
     preview = trimesh.load(
-        root / p["mesh"]["path"] / "preview.glb", force="mesh", process=False
+        root / p["mesh"]["path"] / p["mesh"].get("preview_name", "preview.glb"),
+        force="mesh",
+        process=False,
     )
     assert len(preview.faces) == mesh["triangles"]
     report = {
@@ -81,7 +83,9 @@ def main():
         "gaussian_fields": vertices.data.dtype.names,
         "gaussian_sha256": sha256(ply),
         "mesh": mesh,
-        "preview_sha256": sha256(root / p["mesh"]["path"] / "preview.glb"),
+        "preview_sha256": sha256(
+            root / p["mesh"]["path"] / p["mesh"].get("preview_name", "preview.glb")
+        ),
         "jobs": [
             {k: j[k] for k in ("id", "stage", "state", "exit_code", "created", "ended")}
             for j in store.jobs(p["id"])

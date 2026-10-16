@@ -121,7 +121,7 @@ def segment(
         or torch.__version__.split("+")[0] != "2.5.1"
         or torch.version.cuda != "11.8"
     ):
-        raise RuntimeError("검증된 Torch 2.5.1 / CUDA 11.8 GPU 환경이 필요합니다.")
+        raise RuntimeError("검증된 GPU 처리 런타임이 필요합니다. 설정 › 처리 장치를 확인하세요.")
     output.mkdir(parents=True, exist_ok=False)
     order = ordered_views(scene)
     sizes = {}
@@ -188,7 +188,7 @@ def segment(
     if set(state) != set(actual) or any(
         state[k].shape != actual[k].shape for k in state
     ):
-        raise ValueError("SAM 3.1 체크포인트가 공식 모델 구조와 일치하지 않습니다.")
+        raise ValueError("객체 선택 모델 파일이 공식 모델 구조와 일치하지 않습니다.")
     del state, actual
     report = {}
     with tempfile.TemporaryDirectory(prefix=".frames-", dir=output) as directory:
@@ -216,7 +216,7 @@ def segment(
                 return
             a = np.asarray(outputs["out_binary_masks"])[locations[0]].squeeze()
             if a.shape != (height, width):
-                raise ValueError("SAM 출력 크기가 입력 프레임과 다릅니다.")
+                raise ValueError("마스크 출력 크기가 입력 사진과 다릅니다.")
             x, y = view["padding_xy"]
             w, h = view["size"]
             a = (a[y : y + h, x : x + w] > 0).astype(np.uint8) * 255
@@ -301,4 +301,14 @@ if __name__ == "__main__":
     parser.add_argument("request", type=Path)
     args = parser.parse_args()
     request = json.loads(args.request.read_text())
+    import os
+
+    memory_fraction = os.environ.get("STUDIO_SAM_MEMORY_FRACTION")
+    if memory_fraction is not None:
+        import torch
+
+        value = float(memory_fraction)
+        if not 0 < value <= 1:
+            raise ValueError("GPU 메모리 비율은 0보다 크고 1 이하여야 합니다.")
+        torch.cuda.set_per_process_memory_fraction(value)
     segment(**request)

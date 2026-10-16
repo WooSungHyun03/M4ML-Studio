@@ -32,3 +32,13 @@ node_modules/
 frontend/dist/
 .pytest_cache/
 *.tsbuildinfo
+
+# Local release archives (source manifest is generated at packaging time)
+release/
+runtime/
+.build/
+
+# Supplied design reference and local ImageMagick inspection output (preserved locally).
+# Synthetic mockup images are not product datasets or GPU verification evidence.
+M4ML-Studio-Design/
+info:
