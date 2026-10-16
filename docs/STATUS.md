@@ -2,7 +2,7 @@
 
 **Initialized:** 2026-10-15 (documentation generated remotely; **no user-host GPU execution performed**)
 **Current gate:** M4ML Studio0.5 quality harness audit in progress; earlier0.3 evidence preserved; public/commercial redistribution BLOCKED. Current handoff: `quality-harness/state/STATUS.md`.
-**Overall status:** INTERNAL RESEARCH BUILD — technical GPU/browser/clean-user/final-archive tests PASS. Public/commercial release is BLOCKED by unresolved licensing duties; other hardware/desktop-study limits remain NOT TESTED (see M4ML_STUDIO_RELEASE_STATUS.md).
+**Overall status:** INTERNAL RESEARCH VALIDATION — current0.5 GPU/native/clean-user tests verified within stated scope; final candidate QA is recorded separately. Public/commercial release BLOCKED; direct SIBR local-user authentication and other hardware/desktop-study limits remain open (see QUALITY_HARNESS_REPORT.md).
 **Workspace:** `/home/m4ml/Desktop/Object-Aware`
 
 > `NOT RUN` is not `PASS`. Do not overwrite audit history; append per-cycle notes. Mark completion only with evidence. The remote repository facts in `COMPATIBILITY.md` are not proof that local sources, checkpoint, drivers or GPU work.
@@ -397,3 +397,10 @@ Request: "2DGS SIBR Gaussian Viewer 통합". Full record: `docs/GAUSSIAN_VIEWER_
 - Test harness initial failures retained (preflight readiness, Qt DevTools dialog acknowledgement, selector syntax/UI completion race). Final12-check PASS resumes only viewer verification from identical completed artifact lineage; logs `evidence/quality-harness/desktop-training-*`, `desktop-artifact-audit.json`; full87 Python PASS. Scientific-source diff from3221821b remains empty.
 - Own source8769/Qt8771/DevTools9333/fixture8770 stopped normally; no GPU compute child left. Existing installed0.3 at8765/PID708613 remains untouched. Workspace fixes are0.5 source only; no new package/runtime install/push.
 - Current handoff `quality-harness/state/STATUS.md`; next QA-002 clean non-root0.5 installation. Native file dialogs/DnD, Wayland/otherGPU and fresh camera+SAM end-to-end remain unverified. Public/commercial licence gates remain BLOCKED; direct SIBR authentication still absent.
+
+### Quality Harness Phases1–7 continuous execution — 2026-10-16
+
+- See QUALITY_HARNESS_REPORT.md and quality-harness/state/EVIDENCE.md E-008 onward. Fixed Korean iteration labels, true dataset-bound resume, actual SQLite cancel starvation, recycled PID ownership, Qt dependency diagnostics/no silent browser fallback, imported-state React#310 and recovery screen overflow, Qt profile/page shutdown order and nondestructive reproducible packaging. All original research source files remain unchanged from3221821b.
+- New A16 actualGPUCOLMAP16/16/officialSAM3.1/propagation/manual-review→original30000 from12500checkpoint→TSDF1024:533800Gaussians,378433vertices/695561triangles, PLY/GLBcolorerror5.96e-08. Finite992loss samples; last0.19404/iteration30000.
+- Actual fresh UID1101 runtime fullsetup and installed B/C1000/TSDF256 PASS; native dialogs/drop/PLYexport6 PASS;94Python/5frontend/build/editor28/Gaussianbrowser23/twoimporttransitions/CPUfault3/100photo-and-theme7 PASS. Qt new30KactualNVIDIAWebGLdisplay/exit0/no profilewarning PASS. PriorFAILlogs retained; otherOS/GPU/Wayland/overnight soak not verified.
+- Internal research evaluation77/100 provisional; no public/commercial release. G12/G13 rights/compliance BLOCKED; directSIBR loopbackauth shared-user limitation. Frozen candidate installation/hash and finalprocess cleanup are documented in harness state and QA beside archive. Existing8765 installed0.3/data preserved; do not infer it was upgraded.

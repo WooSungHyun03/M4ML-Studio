@@ -1,3 +1,11 @@
+# M4ML Studio 0.5 — 현재 Quality Harness 판정
+
+2026-10-16: 내부 연구용 실제 검증 범위는 [Quality Harness 보고서](QUALITY_HARNESS_REPORT.md)를 기준으로 한다. 새16장 GPU COLMAP/SAM3.1/원본30000회/TSDF1024 컬러 메시,12500회 재개, 신규 non-root 설치본 B/C 각1000회, 네이티브 파일 I/O를 실행했다. **공개·상업 배포 HOLD**이며 직접 SIBR 소켓의 로컬 사용자 인증과 다른 하드웨어/Wayland/외부 초보자 연구는 미해결·미검증이다. 최신 고정 압축본의 체크섬·설치 결과는 번들 옆 QA 및 quality-harness/state/EVIDENCE.md에 기록한다.
+
+아래0.3 보고는 과거 증거로 보존한다. 현재0.5의 모든 게이트가 통과했다는 뜻이 아니다.
+
+---
+
 # M4ML Studio 0.3.0 릴리스 판정
 
 2026-10-16: **실제 GPU 파이프라인·브라우저·신규 사용자 설치 검증 PASS / 내부 연구·평가 빌드. 공개·상업 배포 BLOCKED.** 최종 고정 아카이브의 무결성·설치 후 실행 기록은 번들 옆 QA 기록과 `STATUS.md` 최신 항목을 함께 확인한다. 여기의 PASS는 명시된 장비/시험 범위에 한한다.

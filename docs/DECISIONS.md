@@ -197,3 +197,7 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
 - Real Qt navigation to a foreign loopback page inherited both credential and QWebChannel access. Main-frame script injection settings alone do not establish an origin boundary.
 - Restrict page navigation, including subframes/redirects/file/data, to exact127.0.0.1 launch scheme/port. Independently guard bootstrap injection by `window.location.origin`. External content is not opened inside the native privileged page. Existing local routes/downloads retain the backend origin.
 - Evidence: retained native FAIL→PASS,2 policy/bootstrap tests,87 Python and9 real desktop GPU checks; no token values logged (E-004).
+
+## Quality Harness decisions — 2026-10-16
+
+Retain measured PySide6/QtWebEngine stack; no proven equal-load alternative superiority. Restore page-before-profile ownership order. Preserve research algorithms and single Python3.10/Torch2.5.1+cu118 runtime. Bind checkpoint resumes to actual photo/camera/mask/settings identities; legacy unverifiable partials fail safely with files retained. Coalesce high-frequency progress DB writes4Hz after actualcancel500, retain raw logs. Use pidfd/argv ownership for worker signals. Native shared-library diagnostics fail clearly instead of defaulting to browser. Publish immutable candidate paths with reproducible source-bundle metadata. Full rationale: quality-harness/state/DECISIONS.md ADR-H003/H004, QUALITY_HARNESS_REPORT.md. Public/commercial licensing gates remain blocked; do not weaken original research restrictions.
