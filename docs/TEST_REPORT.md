@@ -102,3 +102,12 @@ python3 scripts/package_release.py --internal-research
 - Wayland 세션, 다른 GPU/드라이버, 다른 Ubuntu 버전
 - 0.5.0의 깨끗한 컨테이너 전체 설치(`setup.sh`)
 - 시스템 라이브러리가 없는 환경에서 SIBR 외부 뷰어 동작. 내부 뷰포트는 SIBR 없이 동작하도록 설계했지만, 그 상태 자체는 별도로 시험하지 않았습니다.
+
+## Quality harness verification (2026-10-16, actual0.5 source)
+
+-87 Python PASS (baseline76), frontend4 and TS/Vite PASS; frontend source unchanged.
+- Real CPU children/locks/sockets reproduce and verify failed renderer-start cleanup; actual RTX4080 failure-after-load/retry and five original modes pass.
+- Direct malformed renderer packets rejected before CUDA; valid five-mode PNGs byte-identical to before bounds. Real browser live21/editor28 PASS/console0.
+- Actual Qt foreign main-frame page previously received token/native bridge (booleans only); exact-origin navigation/bootstrap fix verified by native5 security and9 live-GPU checks.
+- Actual new Qt editor100-step original training→automatic TSDF256→color mesh/viewer PASS on copied16-view+mask dataset.2816 Gaussians, loss0.77123,49706 vertices/84310 triangles; independent PLY/GLB error5.96e-08. Final test resumes only the viewer portion of a retained completed run. Earlier harness failures and Qt DevTools dialog acknowledgement discrepancy remain in E-005. This smoke proves connectivity, not final geometry quality or fresh camera/SAM inference.
+- Own processes/ports cleaned, normal installed8765 preserved. Clean0.5 install/native file dialogs/DnD/Wayland/otherGPU remain UNVERIFIED; public/commercial HOLD unchanged. Commands/logs/limits: `quality-harness/state/EVIDENCE.md` (E-001–E-006).
