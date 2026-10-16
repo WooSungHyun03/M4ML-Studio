@@ -34,7 +34,7 @@
 | A26 | PASS | 원본train/loss/pruning소스무변경,현재브라우저100/2000·설치본각100,기존A6000/30K이력분리 |
 | A27 | PASS | 실제NVIDIA/worker CUDA device로그·COLMAP GPU관측. 다중물리GPU는NOT TESTED |
 | A28 | PASS | fresh lifecycle 종료/재개/project재열기/manifest·SQLite,원본30K보존 |
-| A29 | PASS |52회귀,기존real cancel/owner-death/OOM·현재persistentOOM·dead-session lockcleanup계약 |
+| A29 | PASS |53회귀,기존real cancel/owner-death/OOM·현재persistentOOM·dead-session lockcleanup계약 |
 | A30 | PASS (컨테이너 범위) | 신규Ubuntu24사용자빈환경설치·read-onlyapp·실desktop Exec. GNOME 메뉴 마우스 조작NOT TESTED |
 | A31 | PASS | GPU/CPU-only0.3첫실행실진단·모델없어도결과보기·명확한추론차단 |
 | A32 | PASS | UID1101/HOME새경로/공백경로,개발HOME/checkout mount없이설치·실GPU3경로 |
@@ -42,7 +42,7 @@
 | A34 | PASS (현재범위) | 실제loopback만bind,Host/Origin/token/path회귀,외부CDN/업로드없음. 모든서드파티공급망보안인증주장없음 |
 | A35 | PASS | 최신README·USER_GUIDE·TEST_REPORT·FUNCTIONAL_AUDIT·NOTICE |
 | A36 | PASS | actual新UIDinstall/uninstall/reinstall·project/runtime보존,다른sameversion거부 |
-| A37 | PASS | Python52/Frontend4/build·전체browser·설치본A/B/C GPU실행. 이전증거와이번직접실행구분 |
+| A37 | PASS | Python53/Frontend4/build·전체browser·설치본A/B/C GPU실행. 이전증거와이번직접실행구분 |
 
 **공개 배포를 막는 조건:** SuiteSparse GPL/LGPL의 corresponding-source·재링크와 결합 라이선스 검토, 원본 비상업 연구 제한, 법률 전문가 검토/필요 권한 확인. 고지 복사나 설치 성공이 권한 해결을 뜻하지 않는다. `NOTICE`, `M4ML_STUDIO_LICENSES.md`에 범위와 후속 조치를 기록했다. 따라서 이 빌드를 정식 공개·상업 배포 완료로 표시하지 않는다.
 

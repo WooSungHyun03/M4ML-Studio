@@ -1,6 +1,6 @@
 """Per-user install/update/unregister; project data and runtime are preserved."""
 
-import argparse, hashlib, json, os, shutil, subprocess, sys
+import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,10 +96,15 @@ def main():
         return
     manifest = json.loads((ROOT / "release-manifest.json").read_text())
     for name, expected in manifest["files_sha256"].items():
+        relative = Path(name)
+        if relative.is_absolute() or ".." in relative.parts or not relative.parts:
+            raise SystemExit("설치 파일 경로가 올바르지 않습니다: " + name)
         p = ROOT / name
-        if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
+        if not p.resolve().is_relative_to(ROOT.resolve()) or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
             raise SystemExit("설치 파일 검증 실패: " + name)
     version = manifest["version"]
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", version):
+        raise SystemExit("설치 버전이 올바르지 않습니다.")
     app = data / "apps" / version
     runtime = Path(os.environ.get("STUDIO_RUNTIME", data / "runtime"))
     if app.exists():
@@ -111,7 +116,16 @@ def main():
             )
     else:
         app.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(ROOT, app)
+        # An extraction folder can also contain a user's weights, .env or old
+        # files. Install only verified manifest entries, atomically; retain ROOT.
+        with tempfile.TemporaryDirectory(prefix=".install-", dir=app.parent) as temp:
+            staged = Path(temp) / version
+            staged.mkdir()
+            for name in [*manifest["files_sha256"], "release-manifest.json"]:
+                target = staged / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, target)
+            staged.rename(app)
     if not args.no_setup:
         env = os.environ.copy()
         env["STUDIO_RUNTIME"] = str(runtime)

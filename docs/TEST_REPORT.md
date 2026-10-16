@@ -6,7 +6,7 @@
 
 | 분류 | 결과 / 증거 | 범위 |
 |---|---|---|
-| Python 회귀 | **52 PASS** `v03-final-python.log` | provider/CPUflag/migration/상태/색상/프로세스/입력/기존손실·manual보존·session복구. fixture/contract는GPU대체증거가아님 |
+| Python 회귀 | **53 PASS** `v03-final-python.log` | provider/CPUflag/migration/상태/색상/프로세스/입력/기존손실·manual보존·session복구. fixture/contract는GPU대체증거가아님 |
 | Frontend | **4 PASS** `v03-final-frontend.log` | zoom/pan mapping, bounds, 최신session/frame/revision,빈legacy prompt |
 | Release build | PASS `v03-final-build.log` | TypeScript/Vite. lazy Three.js chunk500KB경고 유지 |
 | 전체 Browser E2E | **PASS, console0** `ui-e2e-v03-complete/result.json` | 새프로젝트16실사진upload→실GPU정합→positive/negative→5연속→zoom정확좌표→프레임전환→실전파→eraser/undo/redo/save/skip→명시100 GPU train→자동256TSDF→컬러Viewer.48161정점81624삼각형 |

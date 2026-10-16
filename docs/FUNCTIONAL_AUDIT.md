@@ -18,12 +18,14 @@
 | 전체 loss history | API training-metrics / `LossPlot.tsx` | PASS: 원문 전체 로그를 서버에서 파싱·샘플링. 임의 손실 생성 없음. 재개 이전/이후 절대 iteration 유지 |
 | 컬러 TSDF / PLY / GLB | original `render.py`, `mesh.py`, mesh/export providers | PASS: A218825/B35588/C33994정점 RGB와 GLB COLOR_0 현재 재검사. 원본 알고리즘 무변경. sRGB→linear roundtrip5.96e-8 |
 | 컬러 기본 Viewer / 회전·pan·zoom·mode·export | `MeshViewer.tsx`, `ModelStage.tsx` | PASS: 실제A 컬러 뷰어1366 캡처, 현재 전체 브라우저 및 별도 viewer 조작/내보내기 시험 PASS. 색상 없는 입력은 색 없음. 부분/구멍 있는 형상은 품질 한계 그대로 표시 |
-| 자동 저장 / 재시작 / stage audit | Store/SQLite/manifest | PASS: 이전 재시작·corruption 검사 + 현재52회귀.0.3별 SQLite 백업으로0.2 백업 유지 |
+| 자동 저장 / 재시작 / stage audit | Store/SQLite/manifest | PASS: 이전 재시작·corruption 검사 + 현재53회귀.0.3별 SQLite 백업으로0.2 백업 유지 |
 | 설정 schema2 / provider registry | `config.py`, `engines.py`, `providers/*` | PASS: migration/backup/deep merge/unknown provider 계약 테스트. 대체 연구 모델 미포함 |
 | GPU/CPU 선택 | camera provider/CameraStage | PASS: 이전 실제 CPU554초/GPU192초 비교 + CPUflag 회귀. GPU 없음은 명확히 차단, 결과 보기 유지 |
 | dark/light / 로고 / 고급 정보 | App/style/SettingsDrawer/실제 Logo | PASS: 실제 dark/light·고급 정보·1366/1920 캡처. 기본 작업명, import 파일 형식의 COLMAP 언급은 사용자 선택에 필요하므로 유지 |
-| 진단/종료/취소/프로세스 정리 | API/process/session/gpu_lock | PASS: 이전 실제OOM·owner death·취소 + 현재52회귀. 외부 서비스 프로세스를 무차별 종료하지 않음 |
+| 진단/종료/취소/프로세스 정리 | API/process/session/gpu_lock | PASS: 이전 실제OOM·owner death·취소 + 현재53회귀. 외부 서비스 프로세스를 무차별 종료하지 않음 |
 |0.3 설치/이동 경로/읽기 전용/제거 | install/launch/setup/package scripts | PASS: 실제 신규 사용자0.3 설치·read-only·desktop argv·종료·재설치·설치본 A/B/C GPU 모두 통과. hardcoded0.2 제거 오류 수정 |
 | 배포 라이선스 | NOTICE/47-lib inventory/원문 고지 | 기술적 고지 PASS, **공개 배포 BLOCKED**. GPL/LGPL source/relinking·결합 검토 및 비상업 제한 미해결. 법률 검토 없음 |
 
 미해결 제한: 공개/상업 재배포 권한·의무 정리, 다른 GPU/드라이버·Ubuntu22.04·GNOME 메뉴 마우스 실행 검증, 실제 외부 신규 사용자의 사용성 연구. 전파는 임의 멀티뷰의 정합성을 수학적으로 보장하지 않으며 출력은 완전/수밀 형상 보장이 아니다. 브라우저 SwiftShader 시험과 실제 CUDA 계산을 혼동하지 않는다.
+
+최종 설치기 추가 회귀: manifest 파일만 원자적으로 설치하며 추출 폴더의 추가 `.env`/weights 등을 복사하지 않는다. 상대 경로 이탈·외부 symlink·잘못된 버전은 차단하고 원본 파일은 보존한다. 실제 파일 기반 회귀를 포함한 최종 Python53 PASS. 고정 아카이브 QA는 번들 옆 QA.json 및 STATUS 마지막 항목에 기록한다.
