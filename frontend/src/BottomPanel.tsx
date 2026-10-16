@@ -89,8 +89,8 @@ export function BottomPanel({
   const tabs: [Tab, string, React.ReactNode][] = [
     ["content", "콘텐츠", <ImageIcon size={13} key="c" />],
     ["tasks", "작업 관리자", <ListChecks size={13} key="t" />],
-    ["console", "Console", <Terminal size={13} key="o" />],
-    ["gpu", "GPU Monitor", <Gauge size={13} key="g" />],
+    ["console", "기록", <Terminal size={13} key="o" />],
+    ["gpu", "GPU 사용량", <Gauge size={13} key="g" />],
   ];
   return (
     <div className="bottom-panel">

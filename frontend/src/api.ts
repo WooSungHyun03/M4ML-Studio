@@ -10,12 +10,12 @@ export const stages: Stage[] = [
 // User-facing capability names. Engine/model names (COLMAP, SAM, Object-Aware…)
 // appear only in Settings › 고급 정보, so engines can be replaced without UI changes.
 export const titles: Record<Stage, string> = {
-  import: "이미지",
+  import: "사진",
   colmap: "카메라 정합",
-  sam: "마스크 생성",
+  sam: "객체 선택",
   review: "마스크 검토",
   train: "3D 재구성",
-  mesh: "3D 모델 보기",
+  mesh: "3D 모델",
 };
 export const subtitles: Record<Stage, string> = {
   import: "여러 시점에서 촬영한 사진",
@@ -23,7 +23,7 @@ export const subtitles: Record<Stage, string> = {
   sam: "대표 사진에서 객체를 클릭하세요",
   review: "마스크를 확인하고 필요하면 클릭으로 수정",
   train: "객체 중심 3D 재구성 학습",
-  mesh: "색상이 입혀진 3D 모델",
+  mesh: "색상 메시와 학습 결과",
 };
 export const states: Record<string, string> = {
   pending: "대기",

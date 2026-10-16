@@ -1,3 +1,4 @@
+import { formatIterations } from "./format";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -51,19 +52,19 @@ function stageIcon(state: string, provenance?: string) {
 
 function stageMeta(p: Project, s: Stage) {
   const st = p.stages[s];
-  if (p.stage_provenance?.[s]?.stage_source === "imported" && st === "completed") return "가져옴";
+  if (p.stage_provenance?.[s]?.stage_source === "imported" && st === "completed") return "불러옴";
   if (s === "import" && p.images.length) return String(p.images.length);
   if (s === "colmap" && p.colmap_report && st === "completed") return `${p.colmap_report.registered}/${p.colmap_report.total}`;
   if (s === "review" && Object.keys(p.masks).length) {
     const masks = Object.values(p.masks);
     return `${masks.filter((m) => ["approved", "manual", "skipped"].includes(m.status)).length}/${masks.length}`;
   }
-  if (s === "train" && p.training && st === "completed") return Math.round(p.training.iterations / 1000) + "k";
+  if (s === "train" && p.training && st === "completed") return formatIterations(p.training.iterations);
   if (s === "train" && p.training_partial && st !== "running") return "중단됨";
   return st === "pending" ? "" : states[st];
 }
 
-const TAB_LABEL: Record<Stage, string> = { import: "이미지", colmap: "카메라 정합", sam: "객체 선택", review: "마스크 검토", train: "3D 재구성", mesh: "3D 모델" };
+const TAB_LABEL: Record<Stage, string> = { import: "사진", colmap: "카메라 정합", sam: "객체 선택", review: "마스크 검토", train: "3D 재구성", mesh: "3D 모델" };
 const emit = (name: string) => window.dispatchEvent(new CustomEvent("m4ml:" + name));
 
 export default function App() {
@@ -319,7 +320,7 @@ export default function App() {
           { label: "전체 화면", shortcut: "F11", action: () => void toggleFullScreen() },
           { separator: true },
           { label: "프로젝트 탐색기", shortcut: "Ctrl+B", checked: layout.explorer, disabled: !project, action: () => update({ explorer: !layout.explorer }) },
-          { label: "속성 패널 (Inspector)", shortcut: "Ctrl+I", checked: layout.inspector, disabled: !project, action: () => update({ inspector: !layout.inspector }) },
+          { label: "속성 패널", shortcut: "Ctrl+I", checked: layout.inspector, disabled: !project, action: () => update({ inspector: !layout.inspector }) },
           { label: "작업 패널", shortcut: "Ctrl+J", checked: layout.bottom && layout.bottomTab === "tasks", action: () => update({ bottom: !(layout.bottom && layout.bottomTab === "tasks"), bottomTab: "tasks" }) },
           { label: "로그 패널", checked: layout.bottom && layout.bottomTab === "console", action: () => update({ bottom: !(layout.bottom && layout.bottomTab === "console"), bottomTab: "console" }) },
           { separator: true },
@@ -350,13 +351,13 @@ export default function App() {
         label: "창",
         items: [
           { label: "프로젝트 탐색기", checked: layout.explorer, disabled: !project, action: () => update({ explorer: !layout.explorer }) },
-          { label: "Inspector", checked: layout.inspector, disabled: !project, action: () => update({ inspector: !layout.inspector }) },
-          { label: "3D Viewport", disabled: !project, action: () => goStage("mesh") },
-          { label: "Image Viewer", disabled: !project, action: () => goStage(project?.stages.colmap === "completed" ? "review" : "import") },
+          { label: "속성", checked: layout.inspector, disabled: !project, action: () => update({ inspector: !layout.inspector }) },
+          { label: "3D 뷰포트", disabled: !project, action: () => goStage("mesh") },
+          { label: "사진 보기", disabled: !project, action: () => goStage(project?.stages.colmap === "completed" ? "review" : "import") },
           { separator: true },
           { label: "작업 관리자", action: () => update({ bottom: true, bottomTab: "tasks" }) },
-          { label: "Console", action: () => update({ bottom: true, bottomTab: "console" }) },
-          { label: "GPU Monitor", action: () => update({ bottom: true, bottomTab: "gpu" }) },
+          { label: "기록", action: () => update({ bottom: true, bottomTab: "console" }) },
+          { label: "GPU 사용량", action: () => update({ bottom: true, bottomTab: "gpu" }) },
           { separator: true },
           { label: "레이아웃 저장", action: () => setNotice(save() ? "현재 레이아웃을 저장했습니다. ‘저장한 레이아웃 불러오기’로 되돌릴 수 있습니다." : "레이아웃을 저장하지 못했습니다.") },
           { label: "저장한 레이아웃 불러오기", action: () => setNotice(restoreSaved() ? "저장한 레이아웃을 불러왔습니다." : "저장한 레이아웃이 없습니다.") },
@@ -448,7 +449,7 @@ export default function App() {
           </button>
           <MenuBar menus={menus} />
           <span className="sp" />
-          <button className="device-pill" onClick={() => update({ bottom: true, bottomTab: "gpu" })} title="GPU Monitor 열기">
+          <button className="device-pill" onClick={() => update({ bottom: true, bottomTab: "gpu" })} title="GPU 사용량 열기">
             <MonitorCog size={14} className={gpuInfo ? (active ? "acc" : "ok") : "err"} />
             <b>{gpuInfo ? gpuInfo.name.replace(/^NVIDIA (GeForce )?/, "") : "GPU 없음"}</b>
             {gpuInfo && <span className="num">{((gpuInfo.total_mb - gpuInfo.free_mb) / 1024).toFixed(1)} / {(gpuInfo.total_mb / 1024).toFixed(0)} GB</span>}
@@ -477,7 +478,7 @@ export default function App() {
               <span className="t3" style={{ fontSize: 11.5 }}>{project.folder_import ? "폴더에서 시작" : ""}</span>
               <button className="icon-btn" aria-pressed={layout.explorer} title="프로젝트 탐색기 (Ctrl+B)" onClick={() => update({ explorer: !layout.explorer })}><PanelLeft size={15} /></button>
               <button className="icon-btn" aria-pressed={layout.bottom} title="아래 패널 (Ctrl+J)" onClick={() => update({ bottom: !layout.bottom })}><PanelBottom size={15} /></button>
-              <button className="icon-btn" aria-pressed={layout.inspector} title="Inspector (Ctrl+I)" onClick={() => update({ inspector: !layout.inspector })}><PanelRight size={15} /></button>
+              <button className="icon-btn" aria-pressed={layout.inspector} title="속성 패널 (Ctrl+I)" onClick={() => update({ inspector: !layout.inspector })}><PanelRight size={15} /></button>
             </div>
             <nav className="stage-tabs" aria-label="작업 단계">
               {stages.map((s, i) =>
@@ -538,8 +539,8 @@ export default function App() {
           {effective.inspector && project && (
             <>
               <Splitter axis="x" onDrag={(d) => update({ inspectorW: Math.max(240, Math.min(520, layout.inspectorW - d)) })} onDouble={() => update({ inspector: false })} />
-              <aside className="dock right" style={{ width: layout.inspectorW }} aria-label="Inspector">
-                <div className="dock-h"><b>Inspector</b><span className="t3" style={{ fontSize: 11 }}>{selection ? "선택 항목" : titles[stage]}</span></div>
+              <aside className="dock right" style={{ width: layout.inspectorW }} aria-label="속성">
+                <div className="dock-h"><b>속성</b><span className="t3" style={{ fontSize: 11 }}>{selection ? "선택 항목" : titles[stage]}</span></div>
                 <div className="dock-scroll">
                   <SelectionInspector project={project} selection={selection} onClear={() => setSelection(null)} />
                   <div ref={setInspectorNode} />

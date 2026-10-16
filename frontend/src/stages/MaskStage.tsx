@@ -10,7 +10,7 @@ import { useLivePrompt } from "../useLivePrompt";
 
 const STATUS: Record<string, [string, string]> = {
   generated: ["미확인", "t3"],
-  imported: ["가져옴 · 미확인", "t3"],
+  imported: ["불러옴 · 미확인", "t3"],
   approved: ["확인", "ok"],
   manual: ["수정", "acc"],
   skipped: ["건너뜀", "skipc"],

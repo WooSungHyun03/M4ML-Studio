@@ -102,7 +102,7 @@ export function ModelStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React
         <div className="empty">
           {running ? <span className="spinner" style={{ width: 36, height: 36 }} /> : <Box size={44} className="ill" />}
           <h2>{running ? "3D 모델을 만들고 있습니다" : "아직 3D 모델이 없습니다"}</h2>
-          <p>{running ? active?.message : "3D 재구성 학습이 끝나면 학습 결과를 실시간 렌더로 볼 수 있고, 색상이 입혀진 3D 메시를 자동으로 만듭니다."}</p>
+          <p>{running ? active?.message : "3D 재구성 학습이 끝나면 학습 결과를 실시간 렌더로 볼 수 있고, 색상 메시를 자동으로 만듭니다."}</p>
           <div className="row">
             {project.stages.train === "completed" && !running ? (
               <button className="btn" disabled={blocked} onClick={() => void ctx.action(() => post(base + "/jobs/mesh", { gpu: ctx.gpu }))}>

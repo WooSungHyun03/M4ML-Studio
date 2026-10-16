@@ -1,3 +1,4 @@
+import { formatIterations } from "./format";
 export interface TrainingSample {
   it: number;
   total: number;
@@ -86,7 +87,7 @@ export function LossPlot({ status }: { status: TrainingStatus }) {
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <g key={f}>
             <line x1={x(total * f)} x2={x(total * f)} y1={T} y2={H - B} stroke="var(--line)" strokeDasharray={f ? "2 4" : undefined} />
-            <text x={x(total * f)} y={H - 8} textAnchor="middle">{Math.round((total * f) / 1000)}k</text>
+            <text x={x(total * f)} y={H - 8} textAnchor="middle">{formatIterations(total * f)}</text>
           </g>
         ))}
         {SERIES.map(([k, , colour]) => {
