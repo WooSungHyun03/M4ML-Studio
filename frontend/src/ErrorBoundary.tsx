@@ -11,20 +11,20 @@ export class ErrorBoundary extends Component<
   render() {
     if (this.state.error)
       return (
-        <main className="welcome">
+        <main className="recovery-screen" aria-labelledby="recovery-title">
           <img
             className="brand-logo"
             src="/m4ml-logo.png"
             alt="Media for Machine Laboratory"
           />
-          <h1>M4ML Studio 화면을 복원해야 합니다.</h1>
+          <h1 id="recovery-title">M4ML Studio 화면을 복원해야 합니다.</h1>
           <p role="alert">
             화면을 표시하는 중 오류가 발생했습니다. 저장된 프로젝트 파일은
             삭제하지 않았습니다.
           </p>
           <div className="actions">
-            <button onClick={() => location.reload()}>다시 열기</button>
-            <a className="button" href="/">
+            <button className="btn primary" onClick={() => location.reload()}>다시 열기</button>
+            <a className="btn" href="/">
               프로젝트 목록으로
             </a>
           </div>

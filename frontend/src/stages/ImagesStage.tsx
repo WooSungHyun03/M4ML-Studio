@@ -47,22 +47,6 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
     }
   }
 
-  if (project.input_mode && project.input_mode !== "images" && project.input_mode !== "mesh" && !project.images.length)
-    return (
-      <>
-        {toolbar(null)}
-        <div className="workspace scroll">
-          <ImportPanel
-            project={project}
-            onComplete={(p) => {
-              void ctx.refresh();
-              ctx.setStage(p.input_mode === "colmap" ? "sam" : p.stages.review === "completed" ? "train" : "review");
-            }}
-          />
-        </div>
-      </>
-    );
-
   const registered = useMemo(() => {
     const r = project.colmap_report?.images;
     return r ? new Map(r.map((x) => [x.name, x.registered])) : null;
@@ -101,6 +85,24 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
   useEffect(() => {
     setPicked((p) => new Set([...p].filter((n) => project.images.some((i) => i.name === n))));
   }, [project.images]);
+
+  // Imported photos can arrive on a background refresh while this panel is mounted.
+  // Keep every hook above this conditional view to preserve React's call order.
+  if (project.input_mode && project.input_mode !== "images" && project.input_mode !== "mesh" && !project.images.length)
+    return (
+      <>
+        {toolbar(null)}
+        <div className="workspace scroll">
+          <ImportPanel
+            project={project}
+            onComplete={(p) => {
+              void ctx.refresh();
+              ctx.setStage(p.input_mode === "colmap" ? "sam" : p.stages.review === "completed" ? "train" : "review");
+            }}
+          />
+        </div>
+      </>
+    );
 
   function pick(name: string, e: React.MouseEvent) {
     if (e.shiftKey && anchor) {
