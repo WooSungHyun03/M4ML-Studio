@@ -1,4 +1,4 @@
-# Architecture — M4ML Studio 0.3
+# Architecture — M4ML Studio 0.3 (+ desktop editor)
 
 > Current, implemented architecture. The original 0.1–0.2 design notes are preserved
 > unchanged in the appendix at the end of this file; ADRs live in `docs/DECISIONS.md`.
@@ -6,7 +6,11 @@
 ## 1. Overview
 
 ```text
- Browser tab (127.0.0.1)  ── React + TypeScript + Vite (static build, served by the API)
+ Desktop shell  studio/desktop (PySide6 + QtWebEngine; launched by scripts/launch.py)
+   │  native window/dialogs/downloads via QWebChannel; spawns the API on a free loopback
+   │  port with a per-launch token (injected into the page only); stops it on close
+   │  (developer mode: scripts/launch.py --browser → system browser on STUDIO_PORT)
+ React + TypeScript + Vite UI (static build, served by the API)
    │  HTTP JSON + SSE (per-project event stream), CSRF token header, Host/Origin checks
  FastAPI service  studio/api.py   (loopback only; never imports torch/CUDA)
    │  project/job bookkeeping (SQLite WAL, studio/store.py) · validation gates
@@ -145,12 +149,28 @@ needs an explicit, confirmed request (`cpu_fallback` + `confirmed`).
 
 ## 8. UI structure (`frontend/src`)
 
-`App.tsx` (shell: top bar, stage navigation with status, status bar, log/settings drawers)
-→ `Welcome.tsx` (start modes A/B/C, environment check, recent projects) and one component
-per stage in `stages/` (`ImagesStage`, `CameraStage`, `MaskStage` for creation + review,
-`TrainStage`, `ModelStage`), plus `MaskEditor.tsx`, `MeshViewer.tsx`, `LossPlot.tsx`,
-`ImportPanel.tsx`, `SettingsDrawer.tsx`. Styles follow the M4ML design system
-(`M4ML-Studio-Design/design-system`, tokens in `style.css`, dark default + light theme).
+Editor shell (`App.tsx`): `MenuBar.tsx` (파일·편집·보기·작업·창·도움말, accelerators) →
+project bar → workflow tabs → `dock.tsx` layout (Project Explorer | stage viewport |
+Inspector, bottom panel; resizable `Splitter`s, persisted `Layout` in the app profile's
+localStorage, save/restore/reset) → status bar.
+
+* `ProjectExplorer.tsx` — tree of images, cameras, masks, training, checkpoints, model,
+  exports (`/api/projects/{id}/assets`); search, problems-only filter; selection drives the
+  `Inspector.tsx`. Stage screens render their own inspector content via `InspectorPortal`.
+* `BottomPanel.tsx` — 콘텐츠, 작업 관리자 (jobs, cancel/retry), Console (real job logs),
+  GPU Monitor (`/api/gpu-monitor`, nvidia-smi).
+* `Welcome.tsx` — 새 프로젝트 (folder → `/api/scan-folder` analysis → `/api/projects/from-folder`)
+  and 기존 프로젝트 열기; the analysis itself is `studio/project_scan.py` (UI-independent).
+* Stages in `stages/`: `ImagesStage` (search/sort/multi-select/registration filter/lightbox/
+  remove), `CameraStage` (+ `SparseViewer.tsx`: real sparse points + camera frustums from
+  `/sparse-points`), `MaskStage` + `MaskEditor.tsx`, `TrainStage`, `ModelStage` +
+  `MeshViewer.tsx` (6 display modes, view presets, ortho, gizmo, grid/axes, lighting,
+  stats, PNG screenshot, reload).
+* `Dialogs.tsx` — help documents served from `docs/` (`/api/help/{name}`, whitelisted),
+  about, save-as; `desktop.ts` — QWebChannel bridge with browser fallbacks.
+
+Styles follow the M4ML design system (`M4ML-Studio-Design/design-system`, tokens in
+`style.css`, dark default + light theme).
 
 ---
 

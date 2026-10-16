@@ -34,7 +34,9 @@ export function SettingsDrawer({
   theme,
   setTheme,
   onShutdown,
+  initialTab = "device",
 }: {
+  initialTab?: "device" | "engines" | "model" | "license";
   health: Health | null;
   onClose: () => void;
   onRefresh: () => void;
@@ -42,7 +44,7 @@ export function SettingsDrawer({
   setTheme: (t: string) => void;
   onShutdown: () => void;
 }) {
-  const [tab, setTab] = useState<"device" | "engines" | "model" | "license">("device"),
+  const [tab, setTab] = useState<"device" | "engines" | "model" | "license">(initialTab),
     [info, setInfo] = useState<Engines | null>(null),
     [path, setPath] = useState(""),
     [message, setMessage] = useState(""),

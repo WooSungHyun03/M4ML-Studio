@@ -2,3 +2,5 @@ fastapi==0.115.12
 uvicorn==0.34.2
 python-multipart==0.0.20
 httpx==0.28.1
+PySide6-Essentials==6.8.1
+PySide6-Addons==6.8.1

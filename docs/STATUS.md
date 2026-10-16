@@ -269,3 +269,68 @@
 - Local application commits: fc678be (preserved implementation/branding/providers), d306c13 (manifest-only atomic install),9e61c4 (published-preview retention). Final follow-up commit contains only audit/recovery documentation. Expected `m vendor/sam3` is exactly the3 reproducible official-source compatibility patches; do not reset it. Test data/archives/design references stay local/ignored.
 - Remaining external/release gates: SuiteSparse GPL/LGPL corresponding-source/relinking and combined redistribution/legal review; original noncommercial rights. No counsel/public/commercial approval. Other physical GPUs/drivers, Ubuntu22.04/glibc2.35, GNOME menu mouse click, FUSE/AppImage, external novice and full accessibility study remain NOT TESTED. Partial/occluded meshes and temporal propagation accuracy limits remain explicit.
 - Resume: `gtk-launch m4ml-studio`; open `http://127.0.0.1:8765/?project=cba71418-86e9-4d0b-9e74-c3bbacf70839`. Read `NEXT_ACTION.md` first. Last verification commands are archived in QA/test logs; no functional implementation is intentionally left unfinished on the tested target. Do not mark public redistribution complete without resolving the recorded obligations.
+
+### M4ML 0.4 desktop editor cycle (Claude, 2026-10-16) — standalone window, folder analysis, editor shell
+Request: "Professional 3D Desktop Editor 전면 개선". Everything below was run on this host (Ubuntu 24.04, RTX 4080, driver 580.173.02). No mocks.
+
+- **Phase 1–2: project start.** The three manual start modes were replaced by 새 프로젝트 (folder → analysis) and 기존 프로젝트 열기.
+  - The scanner is `studio/project_scan.py`, UI-independent; endpoints are `/api/scan-folder` and `/api/projects/from-folder`. Integrity rules are in ADR-020.
+  - Fixed in this cycle: a mesh inside a *rejected* training output could still drive the recommendation. It is now marked unusable. The importer was already restricted to meshes inside the accepted output.
+  - Real folders verified with `scripts/verify_folder_open.py` (`evidence/folder-detect/result*.json`):
+    - photos only → 카메라 정합
+    - COLMAP + masks → 3D 재구성
+    - full previous run → 3D 모델 보기, with training and mesh reused and zero jobs
+    - mesh only → 보기
+    - checkpoint only → 이어서 학습
+    - foreign training output → rejected
+  - Source folders were unchanged in every case (hash comparison).
+  - New unit tests: `studio/tests/test_project_scan.py` (12), built on real COLMAP-binary/PLY fixtures. They cover the scan rules, the endpoints, token and home-folder refusal, and photo removal with duplicate promotion.
+- **Phase 3: editor shell.** Pieces:
+  - Menus 파일 / 편집 / 보기 / 작업 / 창 / 도움말
+  - Project bar and workflow tabs
+  - Explorer | viewport | Inspector, bottom panel (콘텐츠 / 작업 관리자 / Console / GPU Monitor) and status bar
+  - Resize, hide and persist; save, restore and reset layout
+  - Help documents (QUICKSTART / USER_GUIDE / SHORTCUTS / TROUBLESHOOTING) served from `docs/` through a whitelist. Engine names appear only in 설정 › 고급 정보.
+  - `scripts/ui_editor_e2e.mjs` against the real backend (project 9ca165c0…): **28/28 PASS, console errors 0** (`evidence/editor-e2e/result.json`). Covered:
+    - six menus open with items
+    - Ctrl+B / Ctrl+J hide panels, and the state persists across reload
+    - splitter drag 248→338 px persists; 기본 레이아웃 복원 returns to 248
+    - Ctrl+1..6 switches all six tabs
+    - six viewport modes
+    - five help/about dialogs load their real documents and version
+- **Phase 4: standalone desktop.** PySide6 6.8.1 + QtWebEngine (ADR-019 compares Electron, Tauri and PySide6).
+  - `scripts/launch.py` now execs the desktop shell by default; `--browser` is developer mode. PySide6 is pinned in `requirements-studio.txt` and the constraints file. The desktop entry has `StartupWMClass`.
+  - Verified on the real X11 session:
+    - the launcher starts `studio.desktop` and the backend on a dynamic port (44835 / 46617); no browser process is started
+    - window close or SIGTERM stops the backend (log: `backend exited -15`)
+    - SIGKILL of the shell is handled by the parent-PID watchdog (verified earlier in this cycle)
+- **Phase 5: images.** Search, sort, Ctrl/Shift multi-select, Ctrl+A, ←/→, 정합됨 / 미정합 filter, lightbox (wheel zoom, pan, ←/→), Delete removal before registration, Explorer selection sync.
+  - Playwright on real data (`evidence/images-ui/`): Shift range = 3, Ctrl+A = 7, lightbox step 1→2, filters 16 / 0.
+  - Removing the original promotes its exact duplicate (API checked). Stored photo files and the source file SHA256 are unchanged.
+- **Phase 6: viewport.**
+  - Display modes: 색상 메시 (default, unlit file colours), 정점 색상 (lit), 셰이딩, 와이어프레임, 법선 (MeshNormalMaterial), 포인트 클라우드 (mesh vertices)
+  - Views 앞/뒤/왼쪽/오른쪽/위/아래 (+Numpad), 원근/직교, a clickable orientation gizmo, grid, axes, brightness and key-light direction, point size, background, stats
+  - PNG screenshot through a real download (`evidence/viewport/11-screenshot-download.png`), reload, PLY/GLB export
+  - `evidence/viewport/01–13` were captured on the real 30K mesh (383,475 vertices / 704,258 triangles); console errors 0.
+  - Camera stage: `SparseViewer` shows the real sparse model (2,816 points, 16 camera frustums). Clicking a frustum or table row selects the photo; the selected camera is drawn orange (`evidence/viewport/20–21`).
+- **Phase 7: tests and package.**
+  - Python `unittest discover -s studio/tests`: **66/66 PASS**. Frontend `npm test`: 4/4. `tsc` and the Vite build pass.
+  - Version bumped to **0.4.0**, so the recorded 0.3.0 archive is untouched and the installer's same-version guard is respected.
+  - `release/M4ML-Studio-0.4.0-linux-x86_64.tar.gz`: 2074 files, sha256 40eabb56e4a733e8e769a5514e5484db75c03be2363d4e10abe54879f277bc09, built with `--internal-research`. It contains no weights, evidence, runtimes or datasets.
+  - Installed into a scratch XDG home with `--no-setup`, reusing the existing verified `.runtime` (PySide6 already present). `gio launch` of the generated desktop entry opened the real window (`evidence/desktop-0.4/installed-window.png`). Observed:
+    - version 0.4.0, `desktop: true`, running from the installed folder
+    - `/api/session` → 403; a cross-origin POST → 403
+    - clean stop on close
+- **Phase 8: docs.** README (launch, folder analysis, viewport), ARCHITECTURE (desktop shell, UI structure), USER_GUIDE, QUICKSTART, SHORTCUTS, TROUBLESHOOTING, ADR-019/020. Licences: PySide6/Qt LGPL-3.0 row added; internal vs public vs commercial table.
+- **Design comparison:** the real 3D 모델 screen (`evidence/editor-e2e/model-stage.png`) matches `M4ML-Studio-Design/screens/07` in layout, tokens, mode bar, gizmo, inspector cards and HUD. Intentional differences:
+  - The left side is the Project Explorer tree, not the design's step list; the workflow moved to the top tabs per the request.
+  - The bottom panel was added.
+  - Design-only claims that the engine cannot back (closed-surface or connected-component counts, contact shadow) are not shown.
+- **Not tested in this cycle:**
+  - No fresh GPU train→mesh run through the new editor. The scientific code paths are unchanged, and the last full GPU pipeline evidence is the 0.3 audit above.
+  - The full constrained `setup.sh` was not run in a clean container for 0.4.0. PySide6 resolution was checked only with `pip --dry-run` against the constraints.
+  - Native dialogs and drag-and-drop inside the Qt window were not driven by automation.
+  - Wayland session, Ubuntu 22.04, other GPUs/drivers, GNOME menu mouse click.
+- **Supported / verified:** Ubuntu 24.04 x86_64, X11 session, RTX 4080 16 GB, driver 580.173.02. Other configurations are not certified.
+- **Licences:** public / commercial release stays **BLOCKED** (SuiteSparse GPL/LGPL obligations, CUDA redistribution terms, Qt LGPL notice review, original noncommercial terms).
+- **Servers:** test server 8769 (`STUDIO_DATA=evidence/folder-detect/data`) is stopped at the end of this cycle. The user's normal 8765 app was not touched.

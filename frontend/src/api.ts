@@ -48,6 +48,8 @@ export interface MaskData {
   error?: string;
 }
 export interface Job {
+  created?: string;
+  ended?: string | null;
   id: string;
   stage: string;
   state: string;
@@ -74,6 +76,8 @@ export interface Project {
   >;
   updated?: string;
   project_path?: string;
+  source_folder?: string;
+  folder_import?: { reused: string[]; skipped: string[]; recommendation: { stage: string | null; label: string | null } };
   archived?: boolean;
   id: string;
   name: string;
@@ -166,7 +170,14 @@ export interface Health {
   };
 }
 let token = "";
+declare global {
+  interface Window {
+    __M4ML_TOKEN__?: string;
+  }
+}
 async function auth() {
+  // Desktop shell injects the token; the browser developer mode asks the local API.
+  if (!token && window.__M4ML_TOKEN__) token = window.__M4ML_TOKEN__;
   if (!token) token = (await (await fetch("/api/session")).json()).token;
   return token;
 }

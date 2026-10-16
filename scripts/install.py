@@ -143,7 +143,7 @@ def main():
         + quoted(app / "scripts/launch.py")
         + "\nIcon="
         + str(app / "frontend/public/m4ml-icon.png")
-        + "\nTerminal=false\nCategories=Graphics;3DGraphics;\nStartupNotify=true\n"
+        + "\nTerminal=false\nCategories=Graphics;3DGraphics;\nStartupNotify=true\nStartupWMClass=m4ml-studio\n"
     )
     atomic(launcher, desktop)
     launcher.chmod(0o755)

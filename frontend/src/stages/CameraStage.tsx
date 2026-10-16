@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { ArrowRight, Cpu, Gauge, Info, Play, RotateCcw, CircleCheck, CircleX } from "lucide-react";
 import { asset, post } from "../api";
 import type { StageCtx } from "../context";
+import { InspectorPortal } from "../dock";
 import { fmt } from "../context";
+
+const SparseViewer = lazy(() => import("../SparseViewer"));
 
 const STEP_LABEL: Record<string, string> = {
   feature_extraction: "특징점 추출",
@@ -14,7 +17,9 @@ const STEP_LABEL: Record<string, string> = {
 export function CameraStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React.ReactNode) => React.ReactNode }) {
   const { project, base, blocked, health, active } = ctx;
   const [matching, setMatching] = useState("exhaustive"),
-    [tab, setTab] = useState<"ok" | "fail" | "all">("ok");
+    [tab, setTab] = useState<"ok" | "fail" | "all">("ok"),
+    [view, setView] = useState<"photos" | "points">("photos");
+  const picked = ctx.selection?.kind === "camera" || ctx.selection?.kind === "image" ? ctx.selection.name : undefined;
   const report = project.colmap_report;
   const running = active?.stage === "colmap";
   const gpuEngine = health?.colmap?.gpu;
@@ -125,7 +130,7 @@ export function CameraStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: Reac
                 <thead><tr><th>사진</th><th>특징점</th><th>상태</th></tr></thead>
                 <tbody>
                   {list.map((r) => (
-                    <tr key={r.name}>
+                    <tr key={r.name} aria-selected={picked === r.name} onClick={() => ctx.select({ kind: "camera", name: r.name })}>
                       <td className="name ellip" style={{ maxWidth: 120 }} title={r.name}>{r.name}</td>
                       <td className="num">{fmt(r.feature_count)}</td>
                       <td>
@@ -159,23 +164,37 @@ export function CameraStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: Reac
                 );
               })}
             </div>
+            {report && project.scene && (
+              <div className="subbar">
+                <div className="seg" style={{ height: 26 }} role="group" aria-label="결과 보기 방식">
+                  <button aria-pressed={view === "photos"} onClick={() => setView("photos")}>등록된 사진</button>
+                  <button aria-pressed={view === "points"} onClick={() => setView("points")}>3D 포인트 · 카메라</button>
+                </div>
+              </div>
+            )}
+            {report && project.scene && view === "points" ? (
+              <Suspense fallback={<div className="mesh-frame"><p className="viewer-message">3D 뷰어를 준비하고 있습니다…</p></div>}>
+                <SparseViewer projectId={project.id} selected={picked} onPick={(name) => ctx.select({ kind: "camera", name })} />
+              </Suspense>
+            ) : (
             <div className="scroll grow">
               {report && project.scene ? (
                 <div className="reg-grid">
                   {okRows.map((r, i) => (
-                    <div className="cell" key={r.name}>
+                    <button className="cell" key={r.name} aria-pressed={picked === r.name} onClick={() => ctx.select({ kind: "camera", name: r.name })}>
                       <div className="thumb"><img src={asset(project.id, thumb(r.name))} alt={r.name} loading="lazy" /><span className="idx">{i + 1}</span></div>
                       <div className="cap"><span className="ellip">{r.name}</span></div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (
                 <div className="empty"><span className="spinner" style={{ width: 28, height: 28 }} /><p>{active?.message || "카메라 정합을 실행하고 있습니다."}</p></div>
               )}
             </div>
+            )}
           </div>
           {report && (
-            <aside className="panel insp" style={{ width: 290, flex: "none" }}>
+            <InspectorPortal>
               <div className="sec">
                 <div className="sec-h"><b>재구성 정보</b></div>
                 <div className="kv">
@@ -205,7 +224,7 @@ export function CameraStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: Reac
                 <div className="sec-h"><b>다음 단계</b></div>
                 <p className="hint">등록된 {report.registered}장으로 객체 마스크를 만듭니다. 마스크와 클릭 좌표는 왜곡 보정된 사진 기준으로 관리됩니다.</p>
               </div>
-            </aside>
+            </InspectorPortal>
           )}
         </div>
       )}

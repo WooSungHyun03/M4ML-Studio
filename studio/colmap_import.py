@@ -355,9 +355,13 @@ def warp_mask(a, old, new):
     return cv2.remap(a, x, y, cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT)
 
 
-def commit_import(project_root, options):
+def commit_import(project_root, options, source=None):
+    """Copy a verified external calibration (+masks) into the project.
+
+    ``source`` defaults to the browser upload area; the desktop "open folder" flow passes the
+    user's folder directly. The source is only read; everything is written under the project."""
     root = Path(project_root).resolve()
-    uploaded = root / "import-upload"
+    uploaded = Path(source).resolve() if source else root / "import-upload"
     run_dir = root / "imports" / str(uuid.uuid4())
     run_dir.mkdir(parents=True)
     audit = inspect_colmap_import(uploaded, options, run_dir / "inspection")

@@ -125,3 +125,33 @@ Use this as an append-only ADR. Every deviation from requirements or recommended
 ### ADR-018: Protect the referenced preview during temporary-file retention (2026-10-16)
 - Multiple superseded model responses can accumulate without replacing the last published mask. A simple newest-three directory limit could then remove the still-referenced recovery file. Exclude the current published preview from expiry; keep at most three recent directories plus that referenced directory. Once a new result is published the old unreferenced file can expire normally.
 - A real-filesystem regression creates six revision outputs, verifies the published file's original bytes survive superseded-result cleanup, then verifies bounded expiry after the reference changes. This is storage/retention evidence, not fabricated GPU inference. No scientific algorithm/output change. Full Python54 PASS.
+
+### ADR-019: Standalone desktop shell = PySide6 + QtWebEngine (2026-10-16)
+- Requirement: a native window with no browser on launch, plus an icon, native dialogs, drag and drop, shortcuts, remembered geometry, automatic backend start/stop, a dynamic port, auth/Origin protection, error logs and recovery. It must reuse the existing React UI and FastAPI backend without a rewrite.
+- Compared:
+  - **Electron**: mature, but it brings a second runtime (Node + Chromium, ~250 MB) and a separate packaging toolchain. Starting the Python backend means a Node→Python process bridge, and the install would need an npm runtime dependency, which the release has avoided until now (the static UI needs no Node).
+  - **Tauri**: small binaries, but it requires a Rust toolchain plus WebKitGTK/libsoup system packages that differ between Ubuntu 22.04 and 24.04. The installer may not install system packages (no sudo). WebKitGTK WebGL behaviour also differs from Chromium, which adds risk for the three.js viewer.
+  - **PySide6 6.8.1 (LGPL-3.0)**: pip wheels go into the existing single Python 3.10 runtime, with no system packages and no extra toolchain. QtWebEngine is Chromium-based, so it gives the same WebGL as the verified browser path. The backend is a plain child process of the same interpreter, and QWebChannel exposes native dialogs. It costs ~640 MB of site-packages but no new runtime family.
+- Decision: **PySide6**. `scripts/launch.py` now `exec`s `python -m studio.desktop` by default. `--browser` keeps the developer/browser mode on `STUDIO_PORT`, and `--no-browser` starts only the backend. If PySide6 is missing, the launcher says so in Korean and falls back to browser mode; it does not fail silently.
+- Security:
+  - Each launch picks a free loopback port and generates a fresh 32-byte token, passed to the backend via the environment and injected only into the window's page (QWebEngineScript). With `STUDIO_DESKTOP=1`, `/api/session` refuses to hand the token out, so another local web page cannot obtain it.
+  - Unchanged backend rules:
+    - Host must be loopback; otherwise the request is rejected.
+    - A cross-site Origin is rejected.
+    - Every mutating request needs the token.
+  - Known limit: GET reads are not token-gated, so other local processes of the same user can still read them (same as before).
+- Lifetime:
+  - Window close or SIGTERM leads to a graceful backend SIGTERM, then a bounded wait, then SIGKILL.
+  - If the shell is SIGKILLed, the backend's parent-PID watchdog (`STUDIO_PARENT_PID` plus `/proc` start time) exits the backend.
+  - The desktop entry gets `StartupWMClass=m4ml-studio`.
+- Dependencies: `PySide6-Essentials/Addons==6.8.1` and `shiboken6==6.8.1` are pinned in `requirements-studio.txt` and the constraints file, so they install in both full and viewer-only modes. Qt is LGPL-3.0 and is used as unmodified, dynamically linked wheels. This is recorded for the public-release licence review; the review itself is not complete.
+
+### ADR-020: Folder analysis replaces the three manual start modes (2026-10-16)
+- Users no longer choose "images / COLMAP / COLMAP+masks". **새 프로젝트** selects a folder, and `studio/project_scan.py` analyses it read-only. The scanner is a UI-independent pure function (`scan_folder`). `/api/scan-folder` returns the analysis, and `/api/projects/from-folder` imports it.
+- Checks are about integrity, not just file presence:
+  - **Sparse models** are parsed with the original `scene/colmap_loader.py` reader. Image names are matched against photo folders; ties are broken by photo size against camera size (undistorted copies are preferred).
+  - **Masks** are matched by name and size.
+  - **Training output** is accepted only if its `cameras.json` camera centres match the COLMAP centres `−Rᵀt` of the selected model.
+  - **Checkpoints** are resumable only with matching training output.
+  - **Meshes** are accepted after a PLY header check, and only when they belong to that accepted training output.
+- Results from another dataset are reported as problems and are never attached. Source folders are never written: files are copied into the project. Manual path choice remains available as an advanced option.

@@ -1,4 +1,9 @@
-"""User desktop launcher: private instance lock, no GPU imports, bounded shutdown."""
+"""User launcher.
+
+Default: the standalone desktop window (PySide6 + QtWebEngine, ``studio.desktop``), which starts
+and stops its own loopback backend on a free port. ``--browser`` keeps the developer mode
+(backend on STUDIO_PORT, opened in the system browser); ``--no-browser`` starts only the backend.
+No GPU imports here; bounded shutdown."""
 
 import fcntl, json, os, signal, subprocess, sys, time, urllib.request, webbrowser
 from pathlib import Path
@@ -10,8 +15,41 @@ CONFIG = (
 CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "m4ml-studio"
 
 
+def runtime_python():
+    config = {}
+    try:
+        config = json.loads((CONFIG / "install.json").read_text())
+    except (FileNotFoundError, ValueError):
+        pass
+    runtime = os.environ.get("STUDIO_RUNTIME") or config.get("runtime") or str(ROOT / ".runtime")
+    return runtime, Path(runtime) / "bin/python"
+
+
+def desktop():
+    """Replace this process with the desktop shell; False if its Qt runtime is not installed."""
+    runtime, python = runtime_python()
+    probe = subprocess.run(
+        [str(python), "-c", "import PySide6.QtWebEngineWidgets"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if probe.returncode != 0:
+        return False
+    env = os.environ.copy()
+    env["STUDIO_RUNTIME"] = runtime
+    os.chdir(ROOT)
+    os.execve(str(python), [str(python), "-m", "studio.desktop"], env)
+
+
 def main():
     CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if "--browser" not in sys.argv and "--no-browser" not in sys.argv:
+        if desktop() is False:
+            print(
+                "데스크톱 창 구성요소(PySide6)를 찾지 못해 브라우저 모드로 엽니다. ./scripts/setup.sh를 다시 실행하면 데스크톱 창을 사용할 수 있습니다.",
+                file=sys.stderr,
+            )
     config = {}
     try:
         config = json.loads((CONFIG / "install.json").read_text())

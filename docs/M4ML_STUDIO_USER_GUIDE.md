@@ -1,5 +1,7 @@
 # M4ML Studio 사용자 안내
 
+> 0.3 이후 데스크톱 편집기 화면 기준의 최신 설명은 [USER_GUIDE.md](USER_GUIDE.md), [SHORTCUTS.md](SHORTCUTS.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md)를 따릅니다. 아래의 "세 가지 시작 방법"은 폴더 자동 분석으로 대체되었습니다.
+
 M4ML Studio는 Object-Aware Loss (2DGS), COLMAP, 공식 SAM3.1을 사용하는 로컬 연구·평가용 도구입니다. 로그인·클라우드 업로드·텔레메트리 없이 사용합니다. 비상업적 연구·평가 조건이 적용됩니다.
 
 ## 설치와 실행

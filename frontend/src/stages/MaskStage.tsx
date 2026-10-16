@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check, CircleCheck, Eraser, Info, Layers, Pencil
 import { api, asset, post } from "../api";
 import type { MaskData } from "../api";
 import type { StageCtx } from "../context";
+import { InspectorPortal } from "../dock";
 import { reviewed } from "../context";
 import { MaskEditor } from "../MaskEditor";
 import { useLivePrompt } from "../useLivePrompt";
@@ -50,6 +51,19 @@ export function MaskStage({ ctx, mode, toolbar }: { ctx: StageCtx; mode: "sam" |
     if (project.scene && project.stages.colmap === "completed")
       void post(`${base}/selection/warmup`, { gpu: ctx.gpu }).catch(() => {});
   }, [project.id, project.scene]);
+  // Explorer ⇄ viewport selection sync
+  useEffect(() => {
+    const sel = ctx.selection;
+    if (sel && (sel.kind === "mask" || sel.kind === "image" || sel.kind === "camera") && sel.name !== selected && rows.some((r) => r.name === sel.name)) {
+      if (ctx.guard()) {
+        ctx.setDirty(false);
+        setSelected(sel.name);
+      }
+    }
+  }, [ctx.selection]);
+  useEffect(() => {
+    if (selected && !(ctx.selection && "name" in ctx.selection && ctx.selection.name === selected)) ctx.select({ kind: "mask", name: selected });
+  }, [selected]);
   const index = rows.findIndex((r) => r.name === selected);
   const live = useLivePrompt(project, selected, ctx.gpu, true);
   const mask = project.masks[selected];
@@ -244,7 +258,7 @@ export function MaskStage({ ctx, mode, toolbar }: { ctx: StageCtx; mode: "sam" |
             </div>
           </div>
         </div>
-        <aside className="panel insp" style={{ width: 290, flex: "none" }}>
+        <InspectorPortal>
           {mode === "sam" ? (
             <>
               <div className="sec">
@@ -315,7 +329,7 @@ export function MaskStage({ ctx, mode, toolbar }: { ctx: StageCtx; mode: "sam" |
               </div>
             </>
           )}
-        </aside>
+        </InspectorPortal>
       </div>
     </>
   );

@@ -23,8 +23,32 @@ from studio.importer import import_image, atomic_bytes, MAX_FILE
 from studio.sam31 import validate_mask
 from studio.store import Store, invalidate
 
-TOKEN = secrets.token_urlsafe(32)
+# The desktop shell generates the token and injects it into its own window only;
+# in that mode /api/session is disabled so other local pages cannot discover it.
+TOKEN = os.environ.get("STUDIO_TOKEN") or secrets.token_urlsafe(32)
+DESKTOP = os.environ.get("STUDIO_DESKTOP") == "1"
 store = Store()
+
+
+def _watch_desktop_parent():
+    """In desktop mode the backend must not outlive its window process (even after SIGKILL)."""
+    pid, start = os.environ.get("STUDIO_PARENT_PID"), os.environ.get("STUDIO_PARENT_START")
+    if not pid:
+        return
+    import threading
+
+    def loop():
+        while True:
+            time.sleep(1)
+            try:
+                alive = Path(f"/proc/{pid}/stat").read_text().split()[21] == start
+            except (OSError, IndexError):
+                alive = False
+            if not alive:
+                os.kill(os.getpid(), signal.SIGTERM)  # graceful: lifespan stops jobs/sessions
+                return
+
+    threading.Thread(target=loop, daemon=True).start()
 
 
 @asynccontextmanager
@@ -33,6 +57,7 @@ async def lifespan(app):
 
     reset()
     store.reconcile()
+    _watch_desktop_parent()
     yield
     stop_all()
     from studio import segmentation_session
@@ -171,6 +196,8 @@ class Confirm(Strict):
 
 @app.get("/api/session")
 def session():
+    if DESKTOP:
+        raise HTTPException(403, "데스크톱 앱 창에서만 사용할 수 있습니다.")
     return {"token": TOKEN}
 
 
@@ -659,6 +686,400 @@ async def import_mesh_file(project_id: str, file: UploadFile):
             }
 
         return store.update(project_id, finish)
+
+
+class FolderPath(Strict):
+    path: str = Field(min_length=1, max_length=4096)
+
+
+class FolderOpen(FolderPath):
+    name: str | None = Field(default=None, max_length=120)
+    sparse: str | None = None
+    images: str | None = None
+    masks: str | None = None
+    use_training: bool = True
+    use_mesh: bool = True
+
+
+def _folder(path):
+    folder = Path(path).expanduser().resolve()
+    if not folder.is_dir():
+        raise ValueError("폴더를 찾을 수 없습니다.")
+    if folder == Path.home().resolve() or folder == Path("/") or len(folder.parts) < 3:
+        raise ValueError("홈 폴더나 시스템 폴더 전체는 열 수 없습니다. 프로젝트 데이터 폴더를 선택하세요.")
+    return folder
+
+
+@app.post("/api/scan-folder")
+def scan_folder_api(body: FolderPath):
+    """Read-only analysis of a user-selected folder (see studio/project_scan.py)."""
+    from studio.project_scan import scan_folder
+
+    result = scan_folder(_folder(body.path))
+    existing = (result.get("manifest") or {}).get("id")
+    if existing:
+        try:
+            store.get(existing)
+            result["existing_project"] = existing
+        except (FileNotFoundError, ValueError):
+            pass
+    return result
+
+
+@app.post("/api/projects/from-folder")
+def open_folder(body: FolderOpen):
+    """Create a project from a folder, reusing every valid existing result in it.
+
+    The folder is never modified: photos, calibration, masks, training outputs and meshes
+    that pass validation are copied into the project; invalid or foreign results are skipped
+    with a reason. Returns the project plus what was reused."""
+    from studio.project_scan import scan_folder
+    import uuid
+
+    folder = _folder(body.path)
+    scan = scan_folder(folder)
+    existing = (scan.get("manifest") or {}).get("id")
+    if existing:
+        try:
+            return {"project": store.get(existing), "reused": ["기존 M4ML Studio 프로젝트"], "skipped": []}
+        except (FileNotFoundError, ValueError):
+            pass
+    rec = scan["recommendation"]["stage"]
+    if rec is None:
+        raise ValueError(scan["problems"][0])
+    sparse = body.sparse or scan["selected_sparse"]
+    masks_ok = bool(scan.get("masks") and scan["masks"].get("complete")) and not body.sparse
+    mesh_only = not sparse and not scan.get("images") and scan["meshes"]
+    mode = "mesh" if mesh_only else ("colmap_masks" if sparse and masks_ok else "colmap" if sparse else "images")
+    p = store.create((body.name or folder.name)[:120] or "새 프로젝트")
+    pid, root = p["id"], store.path(p["id"])
+    reused, skipped = [], list(scan["problems"])
+    store.update(pid, lambda doc: doc.update(input_mode=mode, source_folder=str(folder)))
+    try:
+        if mesh_only:
+            _import_mesh(pid, folder / scan["meshes"][0]["path"], None)
+            reused.append("3D 모델 " + scan["meshes"][0]["path"])
+        elif sparse:
+            from studio.colmap_import import commit_import
+
+            options = {"with_masks": masks_ok, "sparse": sparse,
+                       "images": body.images or next((x.get("images_dir") for x in scan["sparse"] if x["path"] == sparse), None),
+                       "masks": body.masks or (scan["masks"]["dir"] if masks_ok else None),
+                       "foreground": "white", "mask_channel": "gray", "normalize_masks": False, "skip_review": masks_ok}
+            result = commit_import(root, options, source=folder)
+            if not result["committed"]:
+                audit = result["audit"]
+                raise ValueError("기존 카메라 정합 결과를 가져오지 못했습니다: " + "; ".join(
+                    (audit.get("blocking_errors") or []) + [e["error"] for e in audit.get("mask_errors") or []][:5]))
+
+            def finish(doc):
+                for key in ("scene", "images", "masks", "colmap_report"):
+                    doc[key] = result[key]
+                doc["stage_provenance"] = {key: result["provenance"] for key in ("import", "colmap")}
+                invalidate(doc, "colmap")
+                doc["stages"].update({"import": "completed", "colmap": "completed",
+                                      "sam": "completed" if masks_ok else "waiting_for_user",
+                                      "review": "completed" if masks_ok else "pending"})
+                if masks_ok:
+                    doc["target_confirmed"] = True
+                    doc["stage_provenance"]["sam"] = result["provenance"]
+                    doc["stage_provenance"]["review"] = {**result["provenance"], "skip_reason": "existing_folder_masks"}
+                    for m in doc["masks"].values():
+                        m.update(status="skipped", review_source="existing_folder_masks")
+
+            store.update(pid, finish)
+            reused.append(f"카메라 정합 결과 ({result['colmap_report']['registered']}장 등록)")
+            if masks_ok:
+                reused.append(f"객체 마스크 {len(result['masks'])}장")
+            if masks_ok and body.use_training:
+                reused += _import_training(pid, folder, scan, skipped, body.use_mesh)
+        else:
+            images_dir = folder / (body.images or scan["images"]["dir"])
+            count = 0
+            for f in sorted(images_dir.iterdir()):
+                if f.suffix.lower() not in {".jpg", ".jpeg", ".png", ".tif", ".tiff"} or not f.is_file():
+                    continue
+                doc = store.get(pid)
+                try:
+                    item = import_image(root, f.read_bytes(), f.name, len(doc["images"]) + 1, doc["images"])
+                    store.update(pid, lambda d, item=item: d["images"].append(item))
+                    count += 1
+                except (ValueError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+                    store.update(pid, lambda d, n=f.name, e=str(exc): d["import_errors"].append({"name": n, "error": e}))
+            reused.append(f"사진 {count}장")
+            if count >= 2:
+                started = complete_import(pid)
+                if isinstance(started, dict) and started.get("job_id"):
+                    reused.append("카메라 정합 자동 시작 (GPU)")
+    except Exception:
+        store.update(pid, lambda doc: doc.update(open_folder_error=True))
+        raise
+    store.update(pid, lambda doc: doc.update(folder_import={"reused": reused, "skipped": skipped,
+                                                             "recommendation": scan["recommendation"]}))
+    out = store.get(pid)
+    out["project_path"] = str(root)
+    return {"project": out, "reused": reused, "skipped": skipped}
+
+
+def _import_training(pid, folder, scan, skipped, use_mesh):
+    """Copy a training output that verifiably belongs to this dataset into the project."""
+    import uuid
+    from plyfile import PlyData
+    import numpy as np
+    from studio.doctor import sha256 as file_sha
+
+    candidates = [t for t in scan["training"] if t.get("valid") and t.get("dataset_match") == "yes"]
+    if not candidates:
+        return []
+    t = max(candidates, key=lambda t: (max(t.get("iterations") or [0]), max(t.get("checkpoints") or [0])))
+    root = store.path(pid)
+    src = folder / t["path"]
+    dest = root / "runs" / f"imported-{uuid.uuid4()}" / "training"
+    dest.mkdir(parents=True)
+    for name in ("cfg_args", "cameras.json", "input.ply"):
+        if (src / name).is_file():
+            shutil.copyfile(src / name, dest / name)
+    used = []
+    if t.get("iterations"):
+        last = t["iterations"][-1]
+        shutil.copytree(src / "point_cloud" / f"iteration_{last}", dest / "point_cloud" / f"iteration_{last}")
+        ply = dest / "point_cloud" / f"iteration_{last}" / "point_cloud.ply"
+        vertices = PlyData.read(ply)["vertex"]
+        if not len(vertices) or not all(np.isfinite(vertices[k]).all() for k in ("x", "y", "z")):
+            skipped.append("가져온 학습 결과에 유효한 가우시안이 없어 사용하지 않았습니다.")
+            return []
+
+        def finish(doc):
+            doc["training"] = {"path": str(dest.relative_to(root)), "iterations": last, "revision": doc["revision"],
+                               "gaussians": len(vertices), "gpu": 0, "ply_sha256": file_sha(ply),
+                               "engine": "object_aware_2dgs", "imported_from": str(src)}
+            doc["stages"]["train"] = "completed"
+            doc.setdefault("stage_provenance", {})["train"] = {"stage_source": "imported", "stage_state": "verified",
+                                                              "skip_reason": "existing_valid_output"}
+
+        store.update(pid, finish)
+        used.append(f"학습 결과 {last:,}회 (가우시안 {len(vertices):,}개)")
+        meshes = [m for m in scan["meshes"] if m.get("valid") and m.get("kind") == "ply" and m["path"].startswith(t["path"] + "/") and m.get("colors")]
+        if use_mesh and meshes:
+            _import_mesh(pid, folder / meshes[0]["path"], last)
+            used.append(f"3D 모델 ({meshes[0]['triangles']:,} 삼각형)")
+    elif t.get("checkpoints"):
+        last = t["checkpoints"][-1]
+        if last >= 30000:
+            skipped.append("저장 지점이 이미 기본 학습 횟수 이상이라 이어서 학습하지 않습니다.")
+            return []
+        shutil.copyfile(src / f"chkpnt{last}.pth", dest / f"chkpnt{last}.pth")
+
+        def partial(doc):
+            doc["training_partial"] = {
+                "path": str(dest.relative_to(root)), "checkpoint": last, "iterations": 30000,
+                "fingerprint": {"masks": {n: m["sha256"] for n, m in doc["masks"].items()}, "scene": doc["scene"],
+                                "iterations": 30000, "resolution": -1}, "time": __import__("studio.store", fromlist=["now"]).now()}
+
+        store.update(pid, partial)
+        used.append(f"학습 저장 지점 {last:,}회 (이어서 학습 가능)")
+    return used
+
+
+def _import_mesh(pid, path, iterations):
+    """Validate a mesh file, keep the original bytes and make the colour preview."""
+    import uuid
+    from studio.engines import provider
+
+    root = store.path(pid)
+    work = root / "mesh-import" / str(uuid.uuid4())
+    work.mkdir(parents=True)
+    if path.suffix.lower() == ".ply":
+        shutil.copyfile(path, work / "fuse_post.ply")
+    else:
+        import trimesh
+        import numpy as np
+        from studio.mesh import glb_colors, linear_to_srgb, check_glb_resources
+
+        check_glb_resources(path)
+        mesh = trimesh.load(path, force="mesh", process=False)
+        colors = glb_colors(path)
+        if colors is not None:
+            mesh.visual.vertex_colors = np.column_stack([
+                np.rint(np.clip(linear_to_srgb(colors), 0, 1) * 255).astype(np.uint8), np.full(len(colors), 255, np.uint8)])
+        mesh.export(work / "fuse_post.ply")
+    report = provider("export").validate_and_preview(work / "fuse_post.ply", work)
+
+    def finish(doc):
+        doc["mesh"] = {**report, "path": str(work.relative_to(root)), "source_name": path.name,
+                       **({"iterations": iterations} if iterations else {})}
+        doc["stages"]["mesh"] = "completed"
+        doc.setdefault("stage_provenance", {})["mesh"] = {"stage_source": "imported", "stage_state": "verified",
+                                                         "skip_reason": "existing_valid_output"}
+
+    store.update(pid, finish)
+
+
+@app.get("/api/projects/{project_id}/assets")
+def project_assets(project_id: str):
+    """Files the Project Explorer shows beyond the project document (checkpoints, model files)."""
+    import re
+
+    p = store.get(project_id)
+    root = store.path(project_id)
+    runs = set()
+    for key in ("training", "training_partial"):
+        if p.get(key):
+            runs.add(p[key]["path"])
+    checkpoints = []
+    for run in sorted(runs):
+        for f in sorted((root / run).glob("chkpnt*.pth")):
+            m = re.fullmatch(r"chkpnt(\d+)\.pth", f.name)
+            if m:
+                checkpoints.append({"name": f.name, "iteration": int(m[1]), "bytes": f.stat().st_size,
+                                    "path": str(f.relative_to(root)),
+                                    "resumable": bool(p.get("training_partial") and p["training_partial"]["path"] == run
+                                                      and p["training_partial"]["checkpoint"] == int(m[1]))})
+    mesh_files = []
+    if p.get("mesh"):
+        d = root / p["mesh"]["path"]
+        for f in sorted(d.rglob("*")):
+            if f.is_file() and f.suffix.lower() in {".ply", ".glb"}:
+                mesh_files.append({"name": f.relative_to(d).as_posix(), "bytes": f.stat().st_size, "path": str(f.relative_to(root))})
+    return {"checkpoints": checkpoints, "mesh_files": mesh_files, "project_path": str(root)}
+
+
+@app.get("/api/projects/{project_id}/sparse-points")
+def sparse_points(project_id: str, limit: int = 150000):
+    """Sparse 3D points (xyz+rgb) and camera poses of the selected reconstruction for the viewer."""
+    import base64
+    import numpy as np
+    from studio.colmap import loader, read_model
+
+    p = store.get(project_id)
+    if not p.get("scene"):
+        raise HTTPException(404, "카메라 정합 결과가 없습니다.")
+    model = store.path(project_id) / p["scene"] / "sparse/0"
+    reader = loader()
+    xyz, rgb, _ = reader.read_points3D_binary(str(model / "points3D.bin"))
+    if len(xyz) > limit:
+        idx = np.random.default_rng(0).choice(len(xyz), limit, replace=False)
+        xyz, rgb = xyz[idx], rgb[idx]
+    _, poses = read_model(model)
+    cams = []
+    for pose in sorted(poses.values(), key=lambda q: q.name):
+        R = reader.qvec2rotmat(pose.qvec)
+        cams.append({"name": pose.name, "center": (-R.T @ pose.tvec).tolist(), "rotation": R.T.tolist()})
+    enc = lambda a, t: base64.b64encode(np.ascontiguousarray(a, dtype=t).tobytes()).decode()  # noqa: E731
+    return {"count": int(len(xyz)), "xyz": enc(xyz, np.float32), "rgb": enc(rgb, np.uint8), "cameras": cams}
+
+
+_HELP_DOCS = {"quickstart": "docs/QUICKSTART.md", "guide": "docs/USER_GUIDE.md", "troubleshooting": "docs/TROUBLESHOOTING.md", "shortcuts": "docs/SHORTCUTS.md"}
+
+
+@app.get("/api/help/{name}")
+def help_document(name: str):
+    """In-app help (Markdown shipped with the application; whitelisted names only)."""
+    if name not in _HELP_DOCS:
+        raise HTTPException(404, "도움말을 찾을 수 없습니다.")
+    path = ROOT / _HELP_DOCS[name]
+    return {"name": name, "markdown": path.read_text() if path.is_file() else "도움말 파일이 설치되지 않았습니다."}
+
+
+@app.get("/api/about")
+def about():
+    from studio.config import VERSION
+    from studio.engines import read_build_info, colmap_binary
+
+    build = None
+    try:
+        build = read_build_info(colmap_binary()[0])
+    except RuntimeError:
+        pass
+    commit = None
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=5).stdout.strip() or None
+    except OSError:
+        pass
+    manifest = ROOT / "release-manifest.json"
+    return {"app": "M4ML Studio", "version": VERSION, "source_commit": commit,
+            "release": json.loads(manifest.read_text()).get("version") if manifest.is_file() else None,
+            "camera_engine_build": build and {k: build.get(k) for k in ("tag", "commit", "profile", "cuda_toolkit")},
+            "desktop": DESKTOP, "data": str(store.root), "install_root": str(ROOT)}
+
+
+@app.get("/api/gpu-monitor")
+def gpu_monitor():
+    """GPU load plus which M4ML Studio processes currently hold GPU memory."""
+    fields = "index,name,memory.total,memory.used,utilization.gpu,temperature.gpu,power.draw,power.limit"
+    gpus, apps = [], []
+    try:
+        out = subprocess.run(["nvidia-smi", f"--query-gpu={fields}", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=5, check=True).stdout
+        for line in out.splitlines():
+            v = [x.strip() for x in line.split(",")]
+            num = lambda x: float(x) if x.replace(".", "", 1).isdigit() else None  # noqa: E731
+            gpus.append({"index": int(v[0]), "name": v[1], "total_mb": num(v[2]), "used_mb": num(v[3]),
+                         "util": num(v[4]), "temp": num(v[5]), "power": num(v[6]), "power_limit": num(v[7])})
+        out = subprocess.run(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=5, check=True).stdout
+        for line in out.splitlines():
+            try:
+                pid, used = (int(x) for x in line.split(","))
+                cmd = Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+            except (ValueError, OSError):
+                continue
+            role = ("객체 선택 세션" if "sam31_session" in cmd else "카메라 정합" if "colmap" in cmd
+                    else "3D 재구성" if "train.py" in cmd else "3D 모델 생성" if "render.py" in cmd
+                    else "마스크 생성" if "studio.sam31" in cmd else None)
+            if role:
+                apps.append({"pid": pid, "used_mb": used, "role": role})
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {"gpus": gpus, "apps": apps, "time": time.time()}
+
+
+@app.post("/api/projects/{project_id}/duplicate")
+def duplicate_project(project_id: str, body: Name):
+    """다른 이름으로 저장: copy the whole project (files + document) under a new id."""
+    import uuid
+
+    src = store.get(project_id)
+    if store.active(project_id):
+        raise ValueError("작업이 끝난 뒤 다른 이름으로 저장하세요.")
+    new_id = str(uuid.uuid4())
+    source, target = store.path(project_id), store.path(new_id)
+    if shutil.disk_usage(store.root).free < sum(f.stat().st_size for f in source.rglob("*") if f.is_file()) + 1024**3:
+        raise ValueError("저장 공간이 부족합니다.")
+    shutil.copytree(source, target, symlinks=True)
+    doc = json.loads(json.dumps(src))
+    doc.update(id=new_id, name=body.name.strip(), created=__import__("studio.store", fromlist=["now"]).now(), duplicated_from=project_id)
+    doc.pop("live_prompt", None)
+    with store.db() as db:
+        db.execute("INSERT INTO projects VALUES (?,?)", (new_id, json.dumps(doc, ensure_ascii=False)))
+    from studio.doctor import atomic_json
+
+    atomic_json(target / "manifest.json", doc)
+    return doc
+
+
+@app.delete("/api/projects/{project_id}/images/{name}")
+def remove_image(project_id: str, name: str):
+    """Remove a photo from the import list (only before camera registration starts)."""
+    with editable(project_id) as (p, root):
+        if p["stages"]["import"] == "completed":
+            raise ValueError("카메라 정합을 시작한 뒤에는 사진을 제거할 수 없습니다. 새 프로젝트를 만드세요.")
+        if not any(i["name"] == name for i in p["images"]):
+            raise ValueError("사진을 찾을 수 없습니다.")
+        # files are kept (raw snapshot); only the import list changes
+
+        def drop(doc):
+            images = [i for i in doc["images"] if i["name"] != name]
+            # An exact duplicate of the removed photo becomes the usable copy; the rest point at it.
+            heir = next((i for i in images if i.get("duplicate_of") == name), None)
+            for i in images:
+                if i.get("duplicate_of") == name:
+                    i["duplicate_of"] = None if i is heir else heir["name"]
+                if i.get("near_duplicate_of") == name:
+                    i["near_duplicate_of"] = None
+            doc["images"] = images
+
+        return store.update(project_id, drop)
 
 
 @app.get("/api/projects/{project_id}/preflight")

@@ -1,14 +1,21 @@
-import { useState } from "react";
-import { CircleCheck, FolderPlus, ImagePlus, Info, Play, TriangleAlert, Upload, CircleX } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, CircleCheck, FolderPlus, ImagePlus, Info, Maximize2, Play, Search, Trash2, TriangleAlert, Upload, CircleX, X } from "lucide-react";
 import { api, asset, post } from "../api";
+import type { Project } from "../api";
 import type { StageCtx } from "../context";
+import { InspectorPortal } from "../dock";
 import { ImportPanel } from "../ImportPanel";
 
 export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: React.ReactNode) => React.ReactNode }) {
   const { project, base, blocked } = ctx;
   const [uploading, setUploading] = useState(""),
     [selected, setSelected] = useState<string | null>(null),
-    [filter, setFilter] = useState<"all" | "warn" | "err">("all"),
+    [filter, setFilter] = useState<"all" | "warn" | "err" | "reg" | "unreg">("all"),
+    [query, setQuery] = useState(""),
+    [sort, setSort] = useState<"import" | "name" | "size">("import"),
+    [picked, setPicked] = useState<Set<string>>(new Set()),
+    [anchor, setAnchor] = useState<string | null>(null),
+    [zoom, setZoom] = useState<string | null>(null),
     [over, setOver] = useState(false);
   const locked = project.stages.import === "completed";
   const usable = project.images.filter((i) => !i.duplicate_of).length;
@@ -56,10 +63,97 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
       </>
     );
 
-  const shown = project.images.filter((i) =>
-    filter === "warn" ? i.advisories?.length || i.duplicate_of : filter === "err" ? false : true,
-  );
+  const registered = useMemo(() => {
+    const r = project.colmap_report?.images;
+    return r ? new Map(r.map((x) => [x.name, x.registered])) : null;
+  }, [project.colmap_report]);
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = project.images.filter(
+      (i) =>
+        (!q || i.source_name.toLowerCase().includes(q) || i.name.toLowerCase().includes(q)) &&
+        (filter === "warn"
+          ? i.advisories?.length || i.duplicate_of
+          : filter === "reg"
+            ? registered?.get(i.name) === true
+            : filter === "unreg"
+              ? registered?.get(i.name) !== true
+              : filter !== "err"),
+    );
+    if (sort === "name") list.sort((a, b) => a.source_name.localeCompare(b.source_name, "ko", { numeric: true }));
+    else if (sort === "size") list.sort((a, b) => b.size[0] * b.size[1] - a.size[0] * a.size[1]);
+    return list;
+  }, [project.images, query, filter, sort, registered]);
   const current = project.images.find((i) => i.name === selected) || project.images[0];
+  const sel = ctx.selection;
+  useEffect(() => {
+    if (sel?.kind === "image" && sel.name !== selected) {
+      setSelected(sel.name);
+      setPicked(new Set([sel.name]));
+    }
+  }, [sel]);
+  useEffect(() => {
+    const all = () => setPicked(new Set(shown.map((i) => i.name)));
+    window.addEventListener("m4ml:select-all", all);
+    return () => window.removeEventListener("m4ml:select-all", all);
+  }, [shown]);
+  // Forget picks that no longer exist (removed photos).
+  useEffect(() => {
+    setPicked((p) => new Set([...p].filter((n) => project.images.some((i) => i.name === n))));
+  }, [project.images]);
+
+  function pick(name: string, e: React.MouseEvent) {
+    if (e.shiftKey && anchor) {
+      const names = shown.map((i) => i.name),
+        a = names.indexOf(anchor),
+        b = names.indexOf(name);
+      if (a >= 0 && b >= 0) setPicked(new Set(names.slice(Math.min(a, b), Math.max(a, b) + 1)));
+    } else if (e.ctrlKey || e.metaKey) {
+      setPicked((p) => {
+        const n = new Set(p);
+        if (n.has(name)) n.delete(name);
+        else n.add(name);
+        return n;
+      });
+      setAnchor(name);
+    } else {
+      setPicked(new Set([name]));
+      setAnchor(name);
+    }
+    setSelected(name);
+    ctx.select({ kind: "image", name });
+  }
+  async function removePicked() {
+    const names = [...picked];
+    if (!names.length || locked || blocked) return;
+    if (!window.confirm(`선택한 사진 ${names.length}장을 프로젝트 목록에서 제거할까요?\n원본 파일과 프로젝트 안의 사본은 삭제되지 않습니다.`)) return;
+    await ctx.action(async () => {
+      for (const n of names) await api<Project>(`${base}/images/${encodeURIComponent(n)}`, { method: "DELETE" });
+      setPicked(new Set());
+    });
+  }
+  function onGridKey(e: React.KeyboardEvent) {
+    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    if (e.key === "Delete" && !locked) {
+      e.preventDefault();
+      void removePicked();
+    } else if (e.key === "Enter" || e.key === " ") {
+      if (current) {
+        e.preventDefault();
+        setZoom(current.name);
+      }
+    } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const i = shown.findIndex((x) => x.name === current?.name);
+      const next = shown[Math.max(0, Math.min(shown.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
+      if (next) {
+        e.preventDefault();
+        setSelected(next.name);
+        setPicked(new Set([next.name]));
+        setAnchor(next.name);
+        ctx.select({ kind: "image", name: next.name });
+      }
+    }
+  }
   const pickers = (
     <>
       <label className="btn" aria-disabled={blocked || locked}>
@@ -125,13 +219,37 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
                 <button aria-pressed={filter === "all"} onClick={() => setFilter("all")}>전체 <span className="count">{project.images.length}</span></button>
                 <button aria-pressed={filter === "warn"} onClick={() => setFilter("warn")}><TriangleAlert size={13} className="warn" />경고 <span className="count">{warnings.length}</span></button>
                 <button aria-pressed={filter === "err"} onClick={() => setFilter("err")}><CircleX size={13} className="err" />오류 <span className="count">{project.import_errors.length}</span></button>
+                {registered && (
+                  <>
+                    <button aria-pressed={filter === "reg"} onClick={() => setFilter("reg")}><CircleCheck size={13} className="ok" />정합됨 <span className="count">{project.images.filter((i) => registered.get(i.name) === true).length}</span></button>
+                    <button aria-pressed={filter === "unreg"} onClick={() => setFilter("unreg")}>미정합 <span className="count">{project.images.filter((i) => registered.get(i.name) !== true).length}</span></button>
+                  </>
+                )}
               </div>
+              <label className="search" style={{ flex: "0 1 220px" }}>
+                <Search size={13} />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="파일 이름 검색" aria-label="사진 이름 검색" />
+              </label>
+              <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="정렬">
+                <option value="import">가져온 순서</option>
+                <option value="name">이름순</option>
+                <option value="size">해상도 큰 순</option>
+              </select>
+              {picked.size > 1 && <span className="t2">{picked.size}장 선택</span>}
+              {!locked && (
+                <button className="btn s danger" disabled={!picked.size || blocked} onClick={() => void removePicked()} title="선택한 사진을 목록에서 제거 (Delete) — 파일은 삭제하지 않습니다">
+                  <Trash2 size={12} />제거
+                </button>
+              )}
               <span className="sp" />
               {uploading && <span className="acc row"><span className="spinner" />{uploading}</span>}
               <span>사용 가능 <b className="t2 num">{usable}</b>장{project.images.length - usable ? ` · 중복 제외 ${project.images.length - usable}장` : ""}</span>
             </div>
             <div
               className="grid"
+              tabIndex={0}
+              onKeyDown={onGridKey}
+              aria-label="사진 목록 — 클릭 선택, Ctrl/Shift 다중 선택, Enter 확대, Delete 제거"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -151,11 +269,12 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
                     </div>
                   ))
                 : shown.map((i, n) => (
-                    <button className="cell" key={i.name} aria-pressed={current?.name === i.name} onClick={() => setSelected(i.name)}>
+                    <button className="cell" key={i.name} aria-pressed={picked.has(i.name) || (!picked.size && current?.name === i.name)} onClick={(e) => pick(i.name, e)} onDoubleClick={() => setZoom(i.name)}>
                       <div className="thumb">
                         <img src={asset(project.id, i.thumbnail)} alt={i.source_name} loading="lazy" />
                         <span className="idx">{n + 1}</span>
                         {(i.advisories?.length || i.duplicate_of) && <span className="flag warn"><TriangleAlert size={12} /></span>}
+                        {registered && registered.get(i.name) !== true && <span className="flag b err" title="카메라 정합 실패"><CircleX size={12} /></span>}
                       </div>
                       <div className="cap">
                         <span className="ellip grow">{i.source_name}</span>
@@ -177,11 +296,12 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
             </div>
           </div>
           {current && (
-            <aside className="panel insp" style={{ width: 400, flex: "none" }}>
+            <InspectorPortal>
               <div className="sec">
-                <div className="preview-box">
+                <button className="preview-box" style={{ cursor: "zoom-in", padding: 0, border: 0, width: "100%", position: "relative" }} onClick={() => setZoom(current.name)} title="크게 보기 (Enter)">
                   <img src={asset(project.id, current.path || current.thumbnail)} alt={current.source_name} />
-                </div>
+                  <Maximize2 size={14} style={{ position: "absolute", right: 8, bottom: 8, color: "#fff" }} />
+                </button>
                 <div className="row" style={{ marginTop: 10 }}>
                   <span className="mono ellip grow" style={{ fontSize: 13 }}>{current.source_name}</span>
                   {current.duplicate_of ? <span className="badge warn">중복 · 제외</span> : <span className="badge ok">사용 가능</span>}
@@ -193,6 +313,7 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
                   <span>해상도</span><span className="num">{current.size.join(" × ")}</span>
                   <span>화소</span><span className="num">{((current.size[0] * current.size[1]) / 1e6).toFixed(1)} MP</span>
                   <span>저장 이름</span><span className="mono">{current.name}</span>
+                  {registered && <><span>카메라 정합</span><span>{registered.get(current.name) ? <span className="ok">등록됨</span> : <span className="err">실패</span>}</span></>}
                 </div>
                 {current.advisories?.map((a) => (
                   <div className="callout warn" key={a} style={{ marginTop: 10 }}><TriangleAlert size={14} />{a}</div>
@@ -201,10 +322,76 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
               <div className="sec">
                 <div className="callout"><Info size={15} /><span>지원 형식: <b>JPG · PNG · TIFF</b>. EXIF 방향을 바로잡아 저장하며, 원본 파일은 수정하지 않습니다.</span></div>
               </div>
-            </aside>
+            </InspectorPortal>
           )}
         </div>
       )}
+      {zoom && <Lightbox project={project} names={shown.map((i) => i.name)} name={zoom} onName={(n) => { setZoom(n); setSelected(n); ctx.select({ kind: "image", name: n }); }} onClose={() => setZoom(null)} />}
     </>
+  );
+}
+
+/** Full-resolution photo viewer: wheel zoom around the cursor, drag to pan, ←/→ to step, Esc to close. */
+function Lightbox({ project, names, name, onName, onClose }: { project: Project; names: string[]; name: string; onName: (n: string) => void; onClose: () => void }) {
+  const image = project.images.find((i) => i.name === name);
+  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const index = names.indexOf(name);
+  const step = (d: number) => {
+    const n = names[index + d];
+    if (n) {
+      onName(n);
+      setView({ s: 1, x: 0, y: 0 });
+    }
+  };
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") step(1);
+      else if (e.key === "ArrowLeft") step(-1);
+      else if (e.key === "0") setView({ s: 1, x: 0, y: 0 });
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  });
+  if (!image) return null;
+  return (
+    <div className="lightbox" role="dialog" aria-label={`${image.source_name} 크게 보기`}>
+      <div className="lightbox-bar">
+        <b className="ellip">{image.source_name}</b>
+        <span className="t3 num">{image.size.join(" × ")} · {index + 1} / {names.length}</span>
+        <span className="sp" />
+        <span className="t3 num">{Math.round(view.s * 100)}%</span>
+        <button className="btn s ghost" onClick={() => setView({ s: 1, x: 0, y: 0 })}>화면에 맞춤 (0)</button>
+        <button className="icon-btn" aria-label="닫기 (Esc)" title="닫기 (Esc)" onClick={onClose}><X size={16} /></button>
+      </div>
+      <div
+        className="lightbox-stage"
+        onWheel={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const cx = e.clientX - r.left - r.width / 2,
+            cy = e.clientY - r.top - r.height / 2;
+          const s = Math.min(16, Math.max(1, view.s * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
+          const k = s / view.s;
+          setView(s === 1 ? { s: 1, x: 0, y: 0 } : { s, x: cx - (cx - view.x) * k, y: cy - (cy - view.y) * k });
+        }}
+        onPointerDown={(e) => {
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          setDrag({ x: e.clientX - view.x, y: e.clientY - view.y });
+        }}
+        onPointerMove={(e) => drag && view.s > 1 && setView({ ...view, x: e.clientX - drag.x, y: e.clientY - drag.y })}
+        onPointerUp={() => setDrag(null)}
+        onDoubleClick={() => setView(view.s > 1 ? { s: 1, x: 0, y: 0 } : { s: 2, x: 0, y: 0 })}
+        style={{ cursor: view.s > 1 ? (drag ? "grabbing" : "grab") : "zoom-in" }}
+      >
+        <img src={asset(project.id, image.path || image.thumbnail)} alt={image.source_name} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }} />
+        <button className="lightbox-nav l" aria-label="이전 사진" disabled={index <= 0} onClick={(e) => { e.stopPropagation(); step(-1); }}><ChevronLeft size={22} /></button>
+        <button className="lightbox-nav r" aria-label="다음 사진" disabled={index >= names.length - 1} onClick={(e) => { e.stopPropagation(); step(1); }}><ChevronRight size={22} /></button>
+      </div>
+      <div className="lightbox-hint">휠 확대/축소 · 드래그 이동 · 더블클릭 2배 · ←/→ 이전/다음 · Esc 닫기</div>
+    </div>
   );
 }

@@ -360,6 +360,22 @@ export function MaskEditor({
     setDirty(true);
     setVersion((v) => v + 1);
   }
+  // Edit menu / Ctrl+S from the application shell
+  useEffect(() => {
+    const u = () => undo(),
+      r = () => redo(),
+      sv = () => {
+        if (dirty && allowSave && !pending) void save();
+      };
+    window.addEventListener("m4ml:undo", u);
+    window.addEventListener("m4ml:redo", r);
+    window.addEventListener("m4ml:save", sv);
+    return () => {
+      window.removeEventListener("m4ml:undo", u);
+      window.removeEventListener("m4ml:redo", r);
+      window.removeEventListener("m4ml:save", sv);
+    };
+  });
   const scale = fit * zoom;
   const pointR = 9 / Math.max(scale, 0.05);
   const pointStroke = 2 / Math.max(scale, 0.05);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Cpu, Info, Pause, Play, RotateCcw, Settings2, TriangleAlert } from "lucide-react";
 import { api, post } from "../api";
 import type { StageCtx } from "../context";
+import { InspectorPortal } from "../dock";
 import { fmt } from "../context";
 import { LossPlot, parseTraining } from "../LossPlot";
 import type { TrainingStatus } from "../LossPlot";
@@ -127,7 +128,7 @@ export function TrainStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React
             <pre className="log-text" style={{ maxHeight: 220 }}>{log.replace(/\x1b\[[0-9;]*m/g, "").split(/\r|\n/).filter((l) => l.trim()).slice(-18).join("\n") || "학습을 시작하면 실제 실행 기록이 표시됩니다."}</pre>
           </div>
         </div>
-        <aside className="panel insp" style={{ width: 300, flex: "none" }}>
+        <InspectorPortal>
           <div className="sec">
             <div className="sec-h"><b>처리 장치</b>{gpu ? <span className="badge ok">사용 가능</span> : <span className="badge err">없음</span>}</div>
             {gpu ? (
@@ -191,7 +192,7 @@ export function TrainStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React
           <div className="sec">
             <div className="row hint"><Cpu size={13} />처리 엔진과 라이선스는 설정 › 고급 정보에서 확인할 수 있습니다.</div>
           </div>
-        </aside>
+        </InspectorPortal>
       </div>
     </>
   );

@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { Box, CircleCheck, Download, Info, RotateCcw } from "lucide-react";
 import { asset, post } from "../api";
 import type { StageCtx } from "../context";
+import { InspectorPortal } from "../dock";
 import { fmt } from "../context";
 
 const MeshViewer = lazy(() => import("../MeshViewer"));
@@ -45,9 +46,9 @@ export function ModelStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React
       ) : (
         <div className="workspace">
           <Suspense fallback={<div className="mesh-frame"><p className="viewer-message">3D 뷰어를 준비하고 있습니다…</p></div>}>
-            <MeshViewer url={asset(project.id, preview)} legacyColors={!mesh!.color} onStats={setStats} />
+            <MeshViewer url={asset(project.id, preview)} legacyColors={!mesh!.color} onStats={setStats} fileBase={fileBase} />
           </Suspense>
-          <aside className="panel insp" style={{ width: 300, flex: "none" }}>
+          <InspectorPortal>
             <div className="sec">
               <div className="sec-h"><b>3D 모델 정보</b>{mesh!.colors !== false ? <span className="badge ok"><CircleCheck size={11} />색상 포함</span> : <span className="badge warn">색상 없음</span>}</div>
               <div className="stat2">
@@ -74,7 +75,7 @@ export function ModelStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (n: React
             <div className="sec">
               <div className="callout"><Info size={15} /><span>가려지거나 촬영되지 않은 부분은 구멍이 있거나 매끄럽지 않을 수 있습니다.</span></div>
             </div>
-          </aside>
+          </InspectorPortal>
         </div>
       )}
     </>
