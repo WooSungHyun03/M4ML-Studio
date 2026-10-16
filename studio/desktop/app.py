@@ -244,11 +244,13 @@ def main(argv=None, *, application=None):
             self.setWindowTitle("M4ML Studio")
             self.setMinimumSize(1024, 640)
             self.settings = QSettings("M4ML", "M4ML Studio")
+            # QObject destroys children in creation order. The view owns the page,
+            # which must be released before its persistent WebEngine profile.
+            self.view = QWebEngineView(self)
             profile = QWebEngineProfile("m4ml-studio", self)  # persistent: localStorage, layout, theme
             profile.setPersistentStoragePath(str(DATA / "webengine"))
             profile.setCachePath(str(CACHE / "webengine"))
             profile.downloadRequested.connect(self.download)
-            self.view = QWebEngineView(self)
             page = StudioPage(profile, self.view)
             self.view.setPage(page)
             s = page.settings()
