@@ -137,7 +137,14 @@ class Backend:
         log(f"backend exited {self.proc.returncode}")
 
 
-def main(argv=None):
+def main(argv=None, *, application=None):
+    from studio.desktop_dependencies import desktop_dependencies
+
+    dependencies = desktop_dependencies()
+    if dependencies["exit_code"]:
+        print(dependencies["output"], file=sys.stderr)
+        log(dependencies["output"])
+        return 1
     os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--ignore-gpu-blocklist --enable-gpu-rasterization")
     from PySide6.QtCore import QObject, QSettings, QUrl, Slot, Qt, QStandardPaths
     from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
@@ -148,9 +155,10 @@ def main(argv=None):
     from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QSplashScreen
     from PySide6.QtGui import QPixmap
 
-    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+    if application is None:
+        QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     # argv[0] sets the X11 WM_CLASS so the window groups with m4ml-studio.desktop
-    app = QApplication(["m4ml-studio", *((argv or sys.argv)[1:])])
+    app = application or QApplication(["m4ml-studio", *((argv or sys.argv)[1:])])
     app.setApplicationName("M4ML Studio")
     app.setOrganizationName("M4ML")
     app.setDesktopFileName("m4ml-studio")

@@ -28,11 +28,12 @@ def runtime_python():
 def desktop():
     """Replace this process with the desktop shell; False if its Qt runtime is not installed."""
     runtime, python = runtime_python()
+    if not python.is_file():
+        print("실행 환경이 없습니다. ./scripts/setup.sh로 설치하세요.", file=sys.stderr)
+        return False
     probe = subprocess.run(
-        [str(python), "-c", "import PySide6.QtWebEngineWidgets"],
+        [str(python), "-m", "studio.desktop_dependencies"],
         cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
     )
     if probe.returncode != 0:
         return False
@@ -47,9 +48,10 @@ def main():
     if "--browser" not in sys.argv and "--no-browser" not in sys.argv:
         if desktop() is False:
             print(
-                "데스크톱 창 구성요소(PySide6)를 찾지 못해 브라우저 모드로 엽니다. ./scripts/setup.sh를 다시 실행하면 데스크톱 창을 사용할 수 있습니다.",
+                "데스크톱 실행 환경을 확인하지 못했습니다. 위 안내와 ./scripts/setup.sh를 확인하세요. 개발용 브라우저 모드는 --browser로 직접 선택할 수 있습니다.",
                 file=sys.stderr,
             )
+            return 1
     config = {}
     try:
         config = json.loads((CONFIG / "install.json").read_text())

@@ -53,6 +53,7 @@ mkdir -p "$STUDIO_BUILD_DIR"
 "$STUDIO_PYTHON" -m pip install --no-deps --no-build-isolation -e ./vendor/sam3
 "$STUDIO_PYTHON" -m pip install -r requirements-studio.txt
 fi
+"$STUDIO_PYTHON" -m studio.desktop_dependencies
 if [[ ! -f frontend/dist/index.html || "${STUDIO_REBUILD_UI:-0}" == 1 ]]; then
   npm ci --prefix frontend
   npm run build --prefix frontend

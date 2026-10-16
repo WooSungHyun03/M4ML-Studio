@@ -125,6 +125,9 @@ def inventory(checkpoint_dir, hash_weights=True):
         if (ROOT / ".git").exists()
         or name not in {"source", "working_tree", "remotes", "submodules"}
     }
+    from studio.desktop_dependencies import desktop_dependencies
+
+    results["desktop_dependencies"] = desktop_dependencies()
     if not (ROOT / ".git").exists():
         results["archive_source"] = archive_provenance(ROOT)
     results["nvcc_path"]["required"] = False

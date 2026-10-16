@@ -13,12 +13,20 @@
 
 ## 설치와 최초 실행
 
+Ubuntu 24.04 X11의 시스템 준비에는 Python3, Git, curl, Miniforge, GCC/G++11과 OpenGL/X11 라이브러리가 필요합니다. Qt 화면에 필요한 `libxcb-cursor0`, `libxkbcommon-x11-0`, `libxcb-icccm4`, `libxcb-keysyms1`, `libxcb-shape0`, `libxcb-xinerama0`, `libxcb-render-util0`, `libegl1`, `libgl1`, `libglib2.0-0`도 준비하세요. 설치 프로그램은 시스템 패키지나 드라이버를 자동으로 변경하지 않습니다. 누락된 라이브러리는 설치·환경 진단에서 안내합니다.
+
+최소 Ubuntu 환경에서는 Qt WebEngine의 `libnss3`, `libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`, `libxtst6`, `libxi6`, `libasound2t64`, `libxkbfile1`도 필요합니다. 시스템 관리자가 다음 패키지를 준비한 뒤 사용자 계정에서 설치를 실행할 수 있습니다.
+
+```bash
+sudo apt install python3 git curl ca-certificates build-essential gcc-11 g++-11 bzip2 libgl1 libegl1 libglib2.0-0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libxtst6 libxi6 libasound2t64 libxkbfile1
+```
+
 내부 검증 압축본과 같은 이름의 SHA256 파일을 받은 폴더에서:
 
 ```bash
-sha256sum -c M4ML-Studio-0.3.0-linux-x86_64.tar.gz.sha256
-tar -xzf M4ML-Studio-0.3.0-linux-x86_64.tar.gz
-cd M4ML-Studio-0.3.0
+sha256sum -c M4ML-Studio-0.5.0-linux-x86_64.tar.gz.sha256
+tar -xzf M4ML-Studio-0.5.0-linux-x86_64.tar.gz
+cd M4ML-Studio-0.5.0
 ./scripts/install.sh
 ```
 
@@ -28,7 +36,7 @@ cd M4ML-Studio-0.3.0
 python3 scripts/launch.py
 ```
 
-프로그램은 **자체 데스크톱 창**(PySide6 6.8.1 + QtWebEngine)으로 열리며 웹 브라우저를 열지 않습니다. 내부 백엔드는 창이 실행될 때마다 비어 있는 loopback 포트와 새 인증 토큰으로 시작되고, 창을 닫으면 함께 종료됩니다. 창 크기·위치·패널 배치는 다음 실행 때 복원됩니다. 개발용 브라우저 모드는 `python3 scripts/launch.py --browser`(기본 주소 http://127.0.0.1:8765, `STUDIO_PORT`로 변경)입니다. 데스크톱 구성요소가 설치되지 않은 경우 런처는 그 사실을 알리고 브라우저 모드로 엽니다.
+프로그램은 **자체 데스크톱 창**(PySide6 6.8.1 + QtWebEngine)으로 열리며 웹 브라우저를 열지 않습니다. 내부 백엔드는 창이 실행될 때마다 비어 있는 loopback 포트와 새 인증 토큰으로 시작되고, 창을 닫으면 함께 종료됩니다. 창 크기·위치·패널 배치는 다음 실행 때 복원됩니다. 개발용 브라우저 모드는 `python3 scripts/launch.py --browser`(기본 주소 http://127.0.0.1:8765, `STUDIO_PORT`로 변경)입니다. 데스크톱 구성요소나 시스템 라이브러리가 없으면 원인과 설치 안내를 표시하고 종료합니다. 브라우저 모드는 --browser로 직접 선택할 때만 열립니다.
 
 SAM3.1 가중치는 포함하지 않습니다. [공식 모델 안내](https://github.com/facebookresearch/sam3)에서 이용 조건을 확인해 **SAM3.1 multiplex 체크포인트**를 직접 준비하고, 앱 **설정 → 모델 파일**에서 신뢰하는 `.pt` 경로를 저장하세요. 파일 존재 확인 후 최초 추론에서 실제 구조를 검사합니다. 개발 PC의 고정 경로에 의존하지 않습니다.
 

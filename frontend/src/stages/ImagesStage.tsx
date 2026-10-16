@@ -204,8 +204,8 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
             }}
           >
             <Upload size={40} className="t3" />
-            <h2>이미지를 불러오세요</h2>
-            <p>객체 주위를 여러 방향에서 찍은 사진이 30장 이상 필요합니다. JPG · PNG · TIFF를 지원합니다.</p>
+            <h2>사진을 불러오세요</h2>
+            <p>객체 주위를 여러 방향에서 찍은 사진을 30장 이상 준비하는 것을 권장합니다. JPG · PNG · TIFF를 지원합니다.</p>
             <div className="row">{pickers}</div>
             <p className="hint">또는 이 영역에 파일이나 폴더를 끌어다 놓으세요. 원본 파일은 수정하지 않습니다.</p>
             {uploading && <p role="status" className="acc">{uploading}</p>}

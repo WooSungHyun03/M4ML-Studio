@@ -3,11 +3,26 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from studio.doctor import atomic_json, command, sha256
 
 
 class DoctorTests(unittest.TestCase):
+    def test_desktop_check_reports_missing_system_libraries_without_loading_a_window(self):
+        from studio.desktop_dependencies import desktop_dependencies
+        import types
+
+        spec = types.SimpleNamespace(submodule_search_locations=["/fixture/PySide6"])
+        missing = types.SimpleNamespace(returncode=0, stdout="libsmime3.so => not found\nlibxcb-cursor.so.0 => not found\n")
+        with patch("importlib.util.find_spec", return_value=spec), patch("subprocess.run", return_value=missing):
+            result = desktop_dependencies()
+        self.assertEqual(result["exit_code"], 1)
+        self.assertIn("libnss3", result["output"])
+        self.assertIn("libxcb-cursor0", result["output"])
+        with patch("importlib.util.find_spec", return_value=None):
+            self.assertEqual(desktop_dependencies()["exit_code"], 1)
+
     def test_arguments_are_literal(self):
         literal = "한글 이름 ; $(touch SHOULD_NOT_EXIST)"
         result = command(
