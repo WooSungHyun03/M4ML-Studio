@@ -1,6 +1,6 @@
 """Build source+offline-UI research bundle, excluding environments, data and weights."""
 
-import argparse, hashlib, io, json, os, shutil, subprocess, tarfile, tempfile
+import argparse, gzip, hashlib, io, json, os, shutil, subprocess, tarfile, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,14 +14,41 @@ def digest(p):
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def write_bundle(app, target, epoch):
+    """Reproducible archive, published atomically without replacing an older build."""
+    def metadata(member):
+        member.uid = member.gid = 0
+        member.uname = member.gname = ""
+        member.mtime = epoch
+        member.mode = 0o755 if member.isdir() or member.mode & 0o111 else 0o644
+        return member
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".partial") as raw:
+        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=epoch) as zipped:
+            with tarfile.open(fileobj=zipped, mode="w") as archive:
+                archive.add(app, arcname=app.name, filter=metadata)
+        raw.flush()
+        os.fsync(raw.fileno())
+        os.fchmod(raw.fileno(), 0o644)
+        os.link(raw.name, target)  # exclusive publication; never truncate an existing build
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--internal-research", action="store_true", help="내부 검증용 빌드. 공개 재배포 승인이 아닙니다.")
+    parser.add_argument("--output-dir", type=Path, help="기존 압축본을 보존할 별도 후보 출력 폴더")
     args = parser.parse_args()
     if (ROOT / "runtime/colmap/bin/colmap").is_file() and not args.internal_research:
         raise SystemExit("내장 런타임의 공개 재배포 검토가 미완료입니다. 내부 검증은 --internal-research로 빌드하세요.")
-    out = ROOT / "release"
-    out.mkdir(exist_ok=True)
+    out = (args.output_dir or ROOT / "release").resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    bundle_target = out / f"M4ML-Studio-{VERSION}-linux-x86_64.tar.gz"
+    if bundle_target.exists() or bundle_target.with_name(bundle_target.name + ".sha256").exists():
+        raise SystemExit("기존 배포 파일을 보존했습니다. --output-dir로 새 후보 폴더를 지정하세요.")
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    epoch = int(os.environ.get("SOURCE_DATE_EPOCH") or subprocess.check_output(
+        ["git", "show", "-s", "--format=%ct", "HEAD"], cwd=ROOT, text=True).strip())
     with tempfile.TemporaryDirectory(prefix="m4ml-package-") as d:
         app = Path(d) / f"M4ML-Studio-{VERSION}"
         app.mkdir()
@@ -150,6 +177,7 @@ def main():
             "redistribution_blockers": ["SuiteSparse GPL/LGPL corresponding-source and relinking compliance", "License compatibility and noncommercial research restrictions; no legal review"],
             "files_sha256": files,
             "weights_included": False,
+            "source_commit": commit,
             "camera_engine": (
                 {k: engine.get(k) for k in ("engine", "tag", "commit", "profile", "cuda_architectures", "cuda_toolkit", "binary_sha256")}
                 if engine
@@ -159,14 +187,12 @@ def main():
         (app / "release-manifest.json").write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False)
         )
-        target = out / f"M4ML-Studio-{VERSION}-linux-x86_64.tar.gz"
-        with tarfile.open(target, "w:gz") as archive:
-            archive.add(app, arcname=app.name)
-        (out / (target.name + ".sha256")).write_text(
-            f"{digest(target)}  {target.name}\n"
+        write_bundle(app, bundle_target, epoch)
+        (out / (bundle_target.name + ".sha256")).write_text(
+            f"{digest(bundle_target)}  {bundle_target.name}\n"
         )
         print(
-            target, len(files), "files", target.stat().st_size, "bytes", digest(target)
+            bundle_target, len(files), "files", bundle_target.stat().st_size, "bytes", digest(bundle_target)
         )
 
 
