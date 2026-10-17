@@ -28,7 +28,7 @@
     "commercial": true,
     "commercial_status": "BSD 고지 조건 적용",
     "version": "4.2.1 / bd1fcf65",
-    "text": "runtime/colmap/COPYING.txt",
+    "text": "licenses/colmap-runtime/COLMAP-COPYING.txt",
     "source": "https://github.com/colmap/colmap",
     "obligation": "저작권·면책 고지 유지. 아래 별도 종속 라이브러리 조건도 적용됩니다."
   },
@@ -72,7 +72,7 @@
     "commercial": false,
     "commercial_status": "비상업 연구·평가",
     "version": "2b6190c5 + Ubuntu 호환 패치",
-    "text": "runtime/sibr/licenses/SIBR-LICENSE.md",
+    "text": "licenses/SIBR-LICENSE.md",
     "source": "https://github.com/RongLiu-Leo/Gaussian-Splatting-Monitor",
     "obligation": "원문·빌드 pin·패치를 보존했습니다. 외부 뷰어의 시스템 종속성은 호스트에 별도 설치합니다."
   },

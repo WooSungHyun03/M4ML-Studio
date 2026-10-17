@@ -90,6 +90,10 @@ def run_job(job_id):
     try:
         if capability is None:
             raise ValueError("알 수 없는 작업입니다.")
+        if cancel.is_set():
+            # A cancel recorded before the worker started wins over any start-up error
+            # (e.g. a missing GPU engine): the user asked for the job not to run.
+            raise Cancelled("시작 전에 취소되었습니다.")
         engine = provider(capability)
         device = str(request.get("gpu_uuid", request.get("gpu", 0)))
         if engine.requires_gpu(request):

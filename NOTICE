@@ -10,7 +10,8 @@ distributed under LICENSE.md (Inria/MPII Gaussian-Splatting License: non-commerc
 and evaluation; redistribution only under that licence with its full text and all notices).
 
 SIBR remote viewer (runtime/sibr; Gaussian-Splatting-Monitor @2b6190c + patches/sibr) is under
-the Inria SIBR / Gaussian-Splatting licences in runtime/sibr/licenses (non-commercial).
+the Inria SIBR / Gaussian-Splatting licences in licenses/SIBR-LICENSE.md and
+licenses/Gaussian-Splatting-Monitor-LICENSE.md (non-commercial).
 
 SAM 3.1 code and local compatibility modifications (patches/sam3) remain under the SAM License;
 see licenses/SAM-source-LICENSE and licenses/SAM-checkpoint-LICENSE. SAM weights are NOT

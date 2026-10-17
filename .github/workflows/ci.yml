@@ -32,6 +32,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build the UI served by the API tests
+        run: npm ci --prefix frontend && npm run build --prefix frontend
       - name: COLMAP for the camera-import tests (Ubuntu package; the GPU build is not in Git)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends colmap
       - name: Install CPU test dependencies (pinned to the verified runtime)
