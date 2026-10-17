@@ -1,0 +1,16 @@
+[
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+    "git_blob": "b386890ba945e1f39448a6b59f20c5d194f58808",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "path": "frontend/public/fonts/NotoSansKR.ttf",
+    "bytes": 10414588
+  },
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/OFL.txt",
+    "git_blob": "1c9f43281b8f216c5461fe9ac729afbade7724e4",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "path": "licenses/NotoSansKR-OFL.txt",
+    "bytes": 4388
+  }
+]

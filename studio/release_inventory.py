@@ -8,6 +8,11 @@ from pathlib import Path
 
 def inventory(root):
     root = Path(root)
+    fonts = json.loads((root / "licenses/NotoSansKR-SOURCE.json").read_text())
+    for font in fonts:
+        path = root / font["path"]
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != font["sha256"]:
+            raise ValueError("내장 한글 글꼴·OFL 원문의 원본 해시가 다릅니다.")
     catalog = json.loads((root / "licenses/catalog.json").read_text())
     texts = {}
     for entry in catalog:
@@ -61,6 +66,7 @@ def inventory(root):
         )
     return {
         "schema": 1,
+        "bundled_font_sources": fonts,
         "scope": "archive files and separate build-runtime package inventory",
         "public_distribution_approved": False,
         "commercial_distribution_approved": False,

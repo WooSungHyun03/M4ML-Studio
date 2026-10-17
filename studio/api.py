@@ -1301,14 +1301,16 @@ def about():
         build = read_build_info(colmap_binary()[0])
     except RuntimeError:
         pass
-    commit = None
-    try:
-        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=5).stdout.strip() or None
-    except OSError:
-        pass
     manifest = ROOT / "release-manifest.json"
+    release = json.loads(manifest.read_text()) if manifest.is_file() else {}
+    commit = release.get("source_commit")
+    if not release and (ROOT / ".git").exists():
+        try:
+            commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=5).stdout.strip() or None
+        except OSError:
+            pass
     return {"app": "M4ML Studio", "version": VERSION, "source_commit": commit,
-            "release": json.loads(manifest.read_text()).get("version") if manifest.is_file() else None,
+            "release": release.get("version"),
             "camera_engine_build": build and {k: build.get(k) for k in ("tag", "commit", "profile", "cuda_toolkit")},
             "desktop": DESKTOP, "data": str(store.root), "install_root": str(ROOT)}
 

@@ -90,6 +90,29 @@ class SettingsAPITests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("cache-control"), "no-store")
 
+    def test_bundled_korean_font_is_served_with_original_license_and_hash(self):
+        import hashlib
+        import json
+        from studio.config import ROOT
+        for entry in json.loads((ROOT / "licenses/NotoSansKR-SOURCE.json").read_text()):
+            self.assertEqual(hashlib.sha256((ROOT / entry["path"]).read_bytes()).hexdigest(), entry["sha256"])
+        response = self.client.get("/fonts/NotoSansKR.ttf")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(hashlib.sha256(response.content).hexdigest(), "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252")
+
+    def test_installed_about_uses_its_manifest_not_a_parent_git_repository(self):
+        import json
+        from types import SimpleNamespace
+        (self.root / "release-manifest.json").write_text(json.dumps({
+            "version": "1.0.0", "source_commit": "a" * 40,
+        }))
+        with patch("studio.api.ROOT", self.root), \
+                patch("studio.engines.colmap_binary", side_effect=RuntimeError("not needed")), \
+                patch("studio.api.subprocess.run", return_value=SimpleNamespace(stdout="parent-repo-sha\n")):
+            response = self.client.get("/api/about")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["source_commit"], "a" * 40)
+
     def test_license_catalog_serves_only_packaged_original_texts(self):
         from studio.config import ROOT
         import json

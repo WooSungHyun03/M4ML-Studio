@@ -7,7 +7,7 @@ const q = await connectQt(debug);
 const report = {
   checks: [],
   screens: [],
-  scope: "actual Qt native input; copied real 30K project; not new training",
+  scope: "actual Qt native input on specified real trained project; not new training",
 };
 const check = (name, ok, detail) => {
   report.checks.push({ name, ok: !!ok, detail });
@@ -19,11 +19,15 @@ async function shot(name) {
   report.screens.push(name);
 }
 async function resize(width, height) {
+  const sequence = Date.now();
   fs.writeFileSync(
     commands,
-    JSON.stringify({ size: [width, height], sequence: Date.now() }),
+    JSON.stringify({ size: [width, height], sequence }),
   );
   await q.sleep(700);
+  const ack = JSON.parse(fs.readFileSync(commands.replace(/\.[^.]+$/, '') + '.ack.json'));
+  check(`native window ${width}x${height}`, ack.request.sequence===sequence && ack.size[0]===width && ack.size[1]===height, ack);
+  check('native bundled font supports Korean', ack.korean_glyphs, ack.font_family);
 }
 const requests = [];
 q.onEvent((e) => {
@@ -64,6 +68,8 @@ async function drag(selector, dx, dy) {
 try {
   await q.waitFor("!!window.m4mlReady");
   check("native bridge active", await q.evaluate("!!window.__M4ML_DESKTOP__"));
+  await q.evaluate('document.fonts.ready.then(()=>true)');
+  check('bundled Korean web font loaded', await q.evaluate('[...document.fonts].some(f=>f.family.includes("Noto Sans KR") && f.status==="loaded")'));
   await q.evaluate(`setTimeout(()=>location.assign('/'),50);true`);
   await q.sleep(700);
   await q.waitFor('!!document.querySelector(".ptag")');
@@ -185,7 +191,7 @@ try {
   );
   for (let i = 0; i < 100 && !requests.length; i++) await q.sleep(200);
   await q.sleep(1000);
-  check("native trained30000 camera is upright", requests.at(-1)?.view[5] > 0, {
+  check("native trained project camera is upright", requests.at(-1)?.view[5] > 0, {
     upY: requests.at(-1)?.view[5],
   });
   for (const [dx, dy] of [

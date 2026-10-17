@@ -23,3 +23,8 @@ NVIDIA driver is supplied by the host, never included. Bundled cudart has its ow
 Python dependencies are installed separately from their upstream package providers;
 their terms also apply. User projects, photos, masks, checkpoints and secrets are excluded.
 The supplied M4ML logo is used for product identification; no separate logo license granted.
+
+Noto Sans KR (Adobe,2014-2021) is bundled unchanged under SIL OFL1.1.
+See licenses/NotoSansKR-OFL.txt and NotoSansKR-SOURCE.json for original
+source/blob and SHA256. The font is separately licensed, not relicensed under
+the application research licence; do not sell the font by itself.

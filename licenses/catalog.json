@@ -86,5 +86,16 @@
     "text": "licenses/frontend-MIT-NOTICES",
     "source": "https://github.com/facebook/react",
     "obligation": "실제 번들 runtime 구성요소 저작권·MIT 원문을 보존합니다."
+  },
+  {
+    "id": "font",
+    "component": "Noto Sans KR 한글 글꼴",
+    "license": "OFL-1.1",
+    "commercial": true,
+    "commercial_status": "OFL 고지 조건 적용",
+    "version": "2.004-H2 · 원본 파일 유지",
+    "text": "licenses/NotoSansKR-OFL.txt",
+    "source": "https://github.com/google/fonts/tree/main/ofl/notosanskr",
+    "obligation": "Adobe 저작권·OFL 원문·출처/해시를 보존합니다. 글꼴 단독 판매는 금지되며 바이너리를 변경하지 않았습니다."
   }
 ]

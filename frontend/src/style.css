@@ -1,6 +1,7 @@
 /* M4ML Studio — application styles (design system v1.0, see M4ML-Studio-Design/design-system).
    Neutrals follow the logo greys (#231F20 / #797880 / #AFAEB3); one accent (Kiln Amber)
    marks the current stage, the primary action and the object mask. Dark is default. */
+@font-face { font-family: "Noto Sans KR"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/NotoSansKR.ttf") format("truetype"); }
 :root {
   --brand-paper: #ececee;
   --accent: #f0a53a; --accent-hover: #f7b555; --accent-ink: #1a1307;
@@ -16,7 +17,7 @@
   --tx-1: #ececef; --tx-2: #afaeb3; --tx-3: #85848d; --tx-4: #5d5c65;
   --canvas: #0f0f11; --viewport: radial-gradient(ellipse 70% 60% at 50% 42%, #2e2e34 0%, #1f1f24 45%, #131316 100%);
   --shadow-pop: 0 8px 24px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .04);
-  --font-ui: "Ubuntu Sans", "Pretendard", "Noto Sans CJK KR", "Noto Sans KR", system-ui, sans-serif;
+  --font-ui: "Ubuntu Sans", "Pretendard", "Noto Sans KR", "Noto Sans CJK KR", system-ui, sans-serif;
   --font-mono: "Ubuntu Sans Mono", "JetBrains Mono", "Noto Sans Mono CJK KR", monospace;
   --r-1: 3px; --r-2: 4px; --r-3: 6px; --r-4: 8px;
   color-scheme: dark;

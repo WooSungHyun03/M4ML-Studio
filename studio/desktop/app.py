@@ -153,12 +153,20 @@ def main(argv=None, *, application=None):
     from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QSplashScreen
-    from PySide6.QtGui import QPixmap
+    from PySide6.QtGui import QPixmap, QFontDatabase
 
     if application is None:
         QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
     # argv[0] sets the X11 WM_CLASS so the window groups with m4ml-studio.desktop
     app = application or QApplication(["m4ml-studio", *((argv or sys.argv)[1:])])
+    font_file = ROOT / "frontend/public/fonts/NotoSansKR.ttf"
+    if font_file.is_file():
+        font_id = QFontDatabase.addApplicationFont(str(font_file))
+        families = QFontDatabase.applicationFontFamilies(font_id)
+        if families:
+            font = app.font()
+            font.setFamily(families[0])
+            app.setFont(font)
     app.setApplicationName("M4ML Studio")
     app.setOrganizationName("M4ML")
     app.setDesktopFileName("m4ml-studio")
