@@ -2,7 +2,7 @@
 
 ## 1.0.0 — 2026-10-17
 
-First non-commercial research/evaluation release of M4ML Studio. Detailed record: `docs/V1_CHANGELOG.md`, `docs/V1_RELEASE_REPORT.md`, `docs/TEST_REPORT.md`.
+First non-commercial research/evaluation release of M4ML Studio.
 
 - **Desktop editor** (PySide6 / Qt WebEngine): menus, workflow tabs, project explorer, inspector, task/log/GPU panels, dark/light themes. Korean UI with a bundled Noto Sans KR font, and Qt's own dialogs in Korean.
 - **Projects:** "new project" analyses a folder read-only (photos, COLMAP, masks, training output, checkpoints, meshes) and reuses only results that belong to the same dataset.
@@ -17,4 +17,4 @@ First non-commercial research/evaluation release of M4ML Studio. Detailed record
 
 ## 0.5.0 / 0.4.0 / 0.3.0
 
-Internal builds: live Gaussian viewport, desktop editor and folder analysis, providers and GPU COLMAP. See `docs/STATUS.md`.
+Internal builds: live Gaussian viewport, desktop editor and folder analysis, providers and GPU COLMAP.

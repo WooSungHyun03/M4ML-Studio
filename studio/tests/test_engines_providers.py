@@ -1,7 +1,7 @@
 """CPU-only tests for engine configuration, provider contracts and live latest-wins.
 
-These do NOT prove GPU inference; real GPU evidence is produced by scripts/e2e_gpu.py
-and scripts/verify_gpu_colmap.py (see docs/TEST_REPORT.md).
+These do NOT prove GPU inference; real GPU checks are scripts/e2e_gpu.py,
+scripts/verify_gpu_colmap.py and scripts/v1_gpu_qa.py (run on a GPU workstation).
 """
 
 import json

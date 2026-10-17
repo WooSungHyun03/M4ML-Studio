@@ -1,8 +1,8 @@
 """Live Gaussian viewport: protocol conventions, model location and API contract.
 
 These run without a GPU. The real-render proof (pixel-identical frames vs. the original
-view.py, browser/desktop interaction, VRAM release) is in docs/GAUSSIAN_VIEWER_INTEGRATION.md
-and scripts/ui_live_render_e2e.mjs / desktop_live_render_qa.mjs."""
+view.py, browser/desktop interaction, VRAM release) is described in
+docs/GAUSSIAN_VIEWER_INTEGRATION.md."""
 
 import json
 import socket

@@ -147,9 +147,6 @@ def main():
             "frontend/tsconfig.json",
             "frontend/vite.config.ts",
             "frontend/index.html",
-            "AGENTS.md",
-            "CODEX_PROMPT.md",
-            "M4ML_STUDIO_RESUME_PROMPT.md",
         ]:
             shutil.copyfile(ROOT / name, app / name)
         # Relocatable GPU camera-reconstruction engine (built by scripts/build_colmap.sh).

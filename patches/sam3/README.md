@@ -24,6 +24,6 @@ Point-only propagation sends the explicitly known `start_frame_index`; otherwise
 upstream's default searches detector outputs and reports no prompts.
 Full final checkpoint key and shape equality is required before inference.
 
-See `docs/STATUS.md`, `studio/tests/test_sam_compat.py`, and real ignored logs under
+See `studio/tests/test_sam_compat.py`, and real ignored logs under
 `evidence/sam31-smoke*` for reproductions and regression evidence. The scientific
 Object-Aware files and native extension sources remain unchanged.

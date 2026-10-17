@@ -37,7 +37,7 @@ Why not stream SIBR's own window? Its window content is the same frame the rende
 
 The in-editor viewport does **not** run SIBR code. It reuses SIBR's protocol and camera conventions, and the original Object-Aware renderer that SIBR displays. That is stated here so no one mistakes it for an embedded SIBR window.
 
-The decision is recorded as ADR-021 in `docs/DECISIONS.md`.
+This section is the decision record.
 
 ## 3. Renderer process (`studio/gaussian_render_server.py`)
 
@@ -159,9 +159,9 @@ Verification of the build:
 
 Automated suites:
 - `python -m unittest discover -s studio/tests`: 76/76 PASS, including 10 new live-render tests (protocol round trip vs. `network_gui`, wire format, model location, mesh rejection, foreign cameras, path escape, API contract).
-- `scripts/ui_live_render_e2e.mjs`: 21/21 PASS.
-- `scripts/desktop_live_render_qa.mjs` (real desktop window): 9/9 PASS.
-- `scripts/ui_editor_e2e.mjs`: 28/28 PASS.
+- browser E2E (local QA tooling): 21/21 PASS.
+- desktop-window QA (local tooling): 9/9 PASS.
+- editor E2E (local tooling): 28/28 PASS.
 
 Desktop input note: the first desktop attempt used global XTest pointer events, but the M4ML window was behind another application's window, so the events went to that window (a text selection appeared there). The XTest drag/wheel path was removed. Desktop QA now sends input only to the M4ML page through QtWebEngine DevTools `Input.dispatchMouseEvent`, which goes through Chromium's real input pipeline but cannot reach other windows. The DevTools port is enabled only for that test run, with `QTWEBENGINE_REMOTE_DEBUGGING`.
 
@@ -194,7 +194,7 @@ Model: 437,838 Gaussians, 30K iterations (103.6 MB PLY). RTX 4080.
 - **SIBR core** (Inria, `runtime/sibr/licenses/SIBR-LICENSE.md`) and **Gaussian-Splatting-Monitor** (Inria/GRAPHDECO Gaussian-Splatting licence) are free for **non-commercial research and evaluation only**, like the Object-Aware / 2DGS code the renderer runs.
 - SIBR's extlibs carry their own permissive licences.
 - The not-bundled Ubuntu libraries keep their distribution licences. FFmpeg and Qt5 are LGPL/GPL depending on the build; they are not redistributed by M4ML.
-- Public or commercial redistribution remains **not approved**; see `docs/M4ML_STUDIO_LICENSES.md`. Nothing here changes that.
+- Commercial use is not permitted; see `THIRD_PARTY_NOTICES.md` and `NOTICE`.
 
 ## 12. Files
 
@@ -216,9 +216,7 @@ Model: 437,838 Gaussians, 30K iterations (103.6 MB PLY). RTX 4080.
 - Build and packaging: `scripts/build_sibr.sh`, `patches/sibr/`, `SOURCES.json`, `scripts/package_release.py`.
 - Tests and QA:
   - `studio/tests/test_live_render.py`
-  - `scripts/ui_live_render_e2e.mjs`
-  - `scripts/desktop_live_render_qa.mjs`
-  - `scripts/x11_input.py` (window-targeted resize only)
+  - browser and desktop-window end-to-end checks were run with local QA tooling that is not part of this repository
 
 ## 13. For the follow-up quality harness
 
