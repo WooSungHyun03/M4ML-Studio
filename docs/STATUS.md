@@ -456,7 +456,7 @@ Actual new tests: Qt25/27screens; new raw16 GPU COLMAP16/16→officialSAMlatest4
   - bottom panel squeezing the editor on short windows;
   - shortcut handler crash on non-element targets.
 - **Licence:** non-commercial redistribution permitted by every component licence. Corresponding source for the copyleft COLMAP runtime libraries is collected and verified (`scripts/collect_corresponding_source.sh`); `package_release.py --corresponding-source` gates and publishes it. NOTICE, catalog, About and README were updated. Commercial use is not permitted.
-- **Final package:** `release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz`, SHA256 `e6b98056eac18b12ef1cc2f8ddaef0f869f98d29f536d4890f2da1e52cbcbb8b`, source commit 58e7ce2. Corresponding source SHA256 `d5ced93f4af2b46d8523d046b33d6d2b517cd472ec71d424c090734e55b224cf`.
+- **Final package:** `release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz`, SHA256 `056803f8848d43be8494bb723f7531dda99f9c9fc68367082c5f2d15bc954575`, source commit b3078a7. Corresponding source SHA256 `6f2fd2d90f2ec85acbca27ae4ab9807e5efafdd810e73ca0d358b51201d12542`.
 - **Fresh-container install of that exact package:** PASS. See TEST_REPORT and RELEASE_READINESS.
 - **BLOCKED:** `git push` to https://github.com/WooSungHyun03/M4ML-Studio.git was denied by this session's permission policy. No push, no tag, no release was made. To finish, the user runs from the project root:
   ```bash

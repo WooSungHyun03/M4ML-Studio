@@ -12,8 +12,8 @@ Updated 2026-10-17 by the Claude release session (continuing the Codex solo-fini
 | G3 GPU pipeline | Installed final package in a fresh container — see "Installed package" below. *(Codex)* source and candidate-D runs: raw16 COLMAP 16/16, SAM 3.1, non-default 1000-iteration resume, TSDF, CUDA frame | see below |
 | G4 Tests | Source: Python 116/116, frontend 12/12, TypeScript/build PASS. CI emulation (Python 3.10 venv without GPU): 108 tests PASS; `test_sam_compat` and `test_scientific_contract` are GPU-runtime only (`scripts/ci_tests.py`) | VERIFIED |
 | G5 Architecture | Provider interfaces, renderer lifecycle, GPU lock/handover, and the atomic export path reviewed; no rewrite | VERIFIED (bounded) |
-| G6 Package | `release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz`, 2250 files, 116,669,421 bytes, SHA256 `e6b98056eac18b12ef1cc2f8ddaef0f869f98d29f536d4890f2da1e52cbcbb8b`, source commit 58e7ce2. No weights, user data, logs, PLY/GLB, `.git` or Python environment. Manifest channel `noncommercial-release` | VERIFIED |
-| G7 Licence | All component licences permit non-commercial redistribution with their texts and notices: Inria/MPII Gaussian-Splatting (`LICENSE.md`), Inria SIBR, SAM License (code only, weights excluded), BSD/MIT/OFL, NVIDIA cudart EULA. Copyleft runtime parts (SuiteSparse GPL/LGPL, GCC 14 runtime GPLv3+exception) are covered by `M4ML-Studio-1.0.0-corresponding-source.tar` (209,397,760 bytes, SHA256 `d5ced93f4af2b46d8523d046b33d6d2b517cd472ec71d424c090734e55b224cf`). Its Ubuntu tarballs match the SHA256 in their GPG-signed `.dsc`, and COLMAP @bd1fcf65 and OpenImageIO @f32bf6e6 are git archives. Commercial use is **not** permitted. No legal review | VERIFIED for non-commercial distribution |
+| G6 Package | `release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz`, 2253 files, 116,679,393 bytes, SHA256 `056803f8848d43be8494bb723f7531dda99f9c9fc68367082c5f2d15bc954575`, source commit b3078a7. No weights, user data, logs, PLY/GLB, `.git` or Python environment. Manifest channel `noncommercial-release` | VERIFIED |
+| G7 Licence | All component licences permit non-commercial redistribution with their texts and notices: Inria/MPII Gaussian-Splatting (`LICENSE.md`), Inria SIBR, SAM License (code only, weights excluded), BSD/MIT/OFL, NVIDIA cudart EULA. Copyleft runtime parts (SuiteSparse GPL/LGPL, GCC 14 runtime GPLv3+exception) are covered by `M4ML-Studio-1.0.0-corresponding-source.tar` (209,397,760 bytes, SHA256 `6f2fd2d90f2ec85acbca27ae4ab9807e5efafdd810e73ca0d358b51201d12542`). Its Ubuntu tarballs match the SHA256 in their GPG-signed `.dsc`, and COLMAP @bd1fcf65 and OpenImageIO @f32bf6e6 are git archives. Commercial use is **not** permitted. No legal review | VERIFIED for non-commercial distribution |
 | G8 Security | Loopback API with token and Origin checks, desktop-only token injection, renderer on an OS-assigned loopback port, no secrets in tracked files or full history (pattern scan), personal paths removed from current docs | VERIFIED (single-user workstation scope) |
 | G9 GitHub | Target `https://github.com/WooSungHyun03/M4ML-Studio` (private, empty). Remote `m4ml` was **not added**: `git push` was blocked by this session's permission policy | **BLOCKED — needs the user** |
 
@@ -33,7 +33,7 @@ Steps: checksum check → extract → `./scripts/install.sh`, exit 0.
 Post-install results, all on the INSTALLED copy (`evidence/v1/final-install/`):
 
 - **Installed unit tests:** 116 ran, OK, 1 skipped (Git-only check that cannot apply to an archive).
-- **Backend `/api/about`:** version 1.0.0, release 1.0.0, channel `noncommercial-release`, source commit 58e7ce2, install root under `~/.local/share/m4ml-studio/apps/1.0.0`.
+- **Backend `/api/about`:** version 1.0.0, release 1.0.0, channel `noncommercial-release`, source commit b3078a7, install root under `~/.local/share/m4ml-studio/apps/1.0.0`.
 - **`/api/health`:** RTX 4080 detected; bundled GPU COLMAP available with CUDA.
 - **SAM checkpoint path:** configured through the API (3,502,755,717 bytes; host weights mounted read-only and **not** copied into the package).
 - **GPU pipeline** (`scripts/v1_gpu_qa.py`, `gpu.json` passed), on 16 fresh photos:
@@ -63,3 +63,23 @@ Release assets ready in `release/v1.0.0-final/`:
 - `RELEASE_NOTES.md`
 
 **Not pushed, no GitHub Release created.** `git push` to the target repository was refused by the session's permission policy (auto-mode classifier: data exfiltration), so the GitHub upload, Actions run, release and post-release download check remain for the user. Exact commands are in `docs/STATUS.md`.
+
+## Final rebuild (b3078a7) and CI
+
+- **First CI run on GitHub** (commit 94913f8): frontend and hygiene passed; Python failed. The cause was that the runner had no COLMAP (the bundled runtime is not in Git).
+- **Second run** (2997298, Ubuntu `colmap` installed): 104/108 passed. Remaining problems:
+  - a real defect: a job cancelled before start ended as "failed" when the GPU engine was missing;
+  - tests that needed the built UI and runtime-only licence texts.
+- **Fixed in b3078a7:**
+  - the worker honours pre-start cancellation;
+  - the licence texts are tracked under `licenses/`;
+  - CI builds the UI.
+- **Local checks:** CI-equivalent 108/108, GPU runtime 116/116.
+- **Package rebuilt from b3078a7:** SHA256 `056803f8848d43be8494bb723f7531dda99f9c9fc68367082c5f2d15bc954575`. Corresponding source `6f2fd2d90f2ec85acbca27ae4ab9807e5efafdd810e73ca0d358b51201d12542`; same files, timestamps follow the commit.
+- **Re-verified in the same clean container:**
+  - uninstall kept the runtime and projects;
+  - the normal installer exited 0;
+  - installed tests 116 OK (1 Git-only skip);
+  - full GPU pipeline PASS again;
+  - evidence in `evidence/v1/final-install-b3078a7/`.
+- The previous build is kept in `release/v1.0.0-final-58e7ce2/` and is not to be released.
