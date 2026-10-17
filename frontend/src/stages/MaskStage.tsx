@@ -165,7 +165,7 @@ export function MaskStage({
     if (mode !== "review") return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest("input,select,textarea")) return;
+      if (t instanceof Element && t.closest("input,select,textarea")) return;
       if (e.key === " " && !e.repeat) {
         e.preventDefault();
         if (!blocked && !live.pending && (mask?.valid || preview)) void confirmAndNext();

@@ -1310,7 +1310,7 @@ def about():
         except OSError:
             pass
     return {"app": "M4ML Studio", "version": VERSION, "source_commit": commit,
-            "release": release.get("version"),
+            "release": release.get("version"), "channel": release.get("channel"),
             "camera_engine_build": build and {k: build.get(k) for k in ("tag", "commit", "profile", "cuda_toolkit")},
             "desktop": DESKTOP, "data": str(store.root), "install_root": str(ROOT)}
 

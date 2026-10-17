@@ -34,13 +34,59 @@ def write_bundle(app, target, epoch):
         os.link(raw.name, target)  # exclusive publication; never truncate an existing build
 
 
+def verify_corresponding_source(src: Path) -> Path:
+    """Every file listed in SHA256SUMS matches, and the copyleft packages match the inventory."""
+    sums = (src / "SHA256SUMS").read_text().splitlines()
+    listed = {}
+    for line in sums:
+        sha, name = line.split(None, 1)
+        name = name.strip().lstrip("*").removeprefix("./")
+        if digest(src / name) != sha:
+            raise SystemExit(f"대응 소스 해시 불일치: {name}")
+        listed[name] = sha
+    inventory = json.loads((ROOT / "licenses/colmap-runtime/inventory.json").read_text())
+    needed = set()
+    for library in inventory["libraries"]:
+        source = library["build_packages"][0].split("source=")[-1]
+        package, _, version = source.partition(" ")
+        if package in ("suitesparse", "gcc-14", "ceres-solver"):
+            needed.add(f"ubuntu-source/{package}_{version.split(':')[-1]}.dsc")
+    missing = sorted(n for n in needed if n not in listed)
+    if missing:
+        raise SystemExit("대응 소스에 필요한 패키지가 없습니다: " + ", ".join(missing))
+    if f"upstream/colmap-{inventory['colmap_commit']}.tar.gz" not in listed:
+        raise SystemExit("대응 소스에 COLMAP 원본이 없습니다.")
+    return src
+
+
+def write_source_bundle(src: Path, target: Path, epoch: int):
+    with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as raw:
+        with tarfile.open(fileobj=raw, mode="w") as archive:
+            for path in sorted(p for p in src.rglob("*") if p.is_file()):
+                info = archive.gettarinfo(str(path), arcname=f"{target.name.removesuffix('.tar')}/{path.relative_to(src).as_posix()}")
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+                info.mtime = epoch
+                info.mode = 0o644
+                with path.open("rb") as stream:
+                    archive.addfile(info, stream)
+    os.link(raw.name, target)
+    os.unlink(raw.name)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--internal-research", action="store_true", help="내부 검증용 빌드. 공개 재배포 승인이 아닙니다.")
     parser.add_argument("--output-dir", type=Path, help="기존 압축본을 보존할 별도 후보 출력 폴더")
+    parser.add_argument("--corresponding-source", type=Path,
+                        help="scripts/collect_corresponding_source.sh 결과 폴더 (내장 런타임의 GPL/LGPL 대응 소스)")
     args = parser.parse_args()
+    corresponding = None
     if (ROOT / "runtime/colmap/bin/colmap").is_file() and not args.internal_research:
-        raise SystemExit("내장 런타임의 공개 재배포 검토가 미완료입니다. 내부 검증은 --internal-research로 빌드하세요.")
+        # A release that redistributes the copyleft runtime must ship its corresponding source.
+        if not args.corresponding_source:
+            raise SystemExit("내장 런타임을 배포하려면 --corresponding-source로 대응 소스 폴더를 지정하세요.")
+        corresponding = verify_corresponding_source(args.corresponding_source.resolve())
     out = (args.output_dir or ROOT / "release").resolve()
     out.mkdir(parents=True, exist_ok=True)
     bundle_target = out / f"M4ML-Studio-{VERSION}-linux-x86_64.tar.gz"
@@ -148,6 +194,19 @@ def main():
         (sam / ".source-revision").write_text(
             json.loads((ROOT / "SOURCES.json").read_text())["sam31"]["revision"]
         )
+        corresponding_record = None
+        if corresponding:
+            source_target = out / f"M4ML-Studio-{VERSION}-corresponding-source.tar"
+            if source_target.exists():
+                raise SystemExit("기존 대응 소스 파일을 보존했습니다. --output-dir로 새 폴더를 지정하세요.")
+            write_source_bundle(corresponding, source_target, epoch)
+            (out / (source_target.name + ".sha256")).write_text(f"{digest(source_target)}  {source_target.name}\n")
+            corresponding_record = {"file": source_target.name, "sha256": digest(source_target),
+                                    "covers": "runtime/colmap (SuiteSparse GPL/LGPL, GCC 14 runtime, Ceres, COLMAP, OpenImageIO)"}
+            shutil.copyfile(corresponding / "README.txt", app / "licenses/CORRESPONDING-SOURCE.txt")
+            with (app / "licenses/CORRESPONDING-SOURCE.txt").open("a") as note:
+                note.write(f"\nSource archive: {source_target.name}\nSHA256: {corresponding_record['sha256']}\n"
+                           "Published next to this package on the same release page.\n")
         from studio.release_inventory import inventory
         (app / "licenses/sbom.json").write_text(
             json.dumps(inventory(app), indent=2, ensure_ascii=False) + "\n"
@@ -176,9 +235,10 @@ def main():
         manifest = {
             "product": "M4ML Studio",
             "version": VERSION,
-            "channel": "internal-research" if args.internal_research else "research-preview",
-            "public_redistribution_approved": False,
-            "redistribution_blockers": ["SuiteSparse GPL/LGPL corresponding-source and relinking compliance", "License compatibility and noncommercial research restrictions; no legal review"],
+            "channel": "internal-research" if args.internal_research else "noncommercial-release",
+            "use": "non-commercial research and evaluation only (LICENSE.md; SIBR/Gaussian-Splatting/SAM terms)",
+            "commercial_use_permitted": False,
+            "corresponding_source": corresponding_record,
             "files_sha256": files,
             "weights_included": False,
             "source_commit": commit,

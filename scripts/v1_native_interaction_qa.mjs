@@ -30,6 +30,10 @@ try{
  await q.click('[aria-label^="제외 클릭"]');await clickPixel(868,300);
  await q.waitFor(`fetch('/api/projects/${copy}').then(r=>r.json()).then(p=>p.live_prompt?.status==='ready' && p.preview?.prompt_revision>${positive})`,120000);
  current=await get(copy);check('negative click automatically re-infers latest revision',current.live_prompt.labels.at(-1)===0,current.preview);
+ const previousRevision=current.live_prompt.prompt_revision;
+ await q.click('[aria-label^="포함 클릭"]');await clickPixel(380,349);await clickPixel(410,360);await q.click('[aria-label^="제외 클릭"]');await clickPixel(868,300);
+ await q.waitFor(`fetch('/api/projects/${copy}').then(r=>r.json()).then(p=>p.live_prompt?.status==='ready' && p.preview?.prompt_revision>=${previousRevision+3})`,120000);
+ current=await get(copy);check('rapid native clicks publish only matching latest input',current.preview.prompt_revision===current.live_prompt.prompt_revision && JSON.stringify(current.preview.request.points)===JSON.stringify(current.live_prompt.points) && JSON.stringify(current.preview.request.labels)===JSON.stringify(current.live_prompt.labels) && current.live_prompt.labels.at(-1)===0,current.preview);
  const ref=current.preview.reference;const originalHash=original.masks[ref].sha256;
  await q.waitFor(`!document.querySelector('[aria-label="지우개"]').disabled`);await q.click('[aria-label="지우개"]');await clickPixel(380,349);
  await q.click('[aria-label="마스크 편집 도구"] [aria-label="실행 취소"]');await q.click('[aria-label="마스크 편집 도구"] [aria-label="다시 실행"]');

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { setting, type SettingsBundle, type Values } from "./TaskSettings";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { uprightQuaternion } from "./viewerCamera";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   Axis3d,
@@ -74,6 +75,7 @@ export default function MeshViewer({
   legacyColors = false,
   onStats,
   fileBase = "model",
+  sceneUp,
 }: {
   url: string;
   displaySettings?: SettingsBundle;
@@ -81,6 +83,9 @@ export default function MeshViewer({
   legacyColors?: boolean;
   onStats?: (s: MeshStats) => void;
   fileBase?: string;
+  /** Scene up from the training cameras; the mesh is displayed with it pointing to +Y
+   *  (display only, exported files are untouched). Omitted → the file's own +Y. */
+  sceneUp?: number[] | null;
 }) {
   const display = useRef(displaySettings);
   display.current = displaySettings;
@@ -474,9 +479,14 @@ export default function MeshViewer({
             }
           }
         });
+        const fileBox = new THREE.Box3().setFromObject(object);
+        if (sceneUp && sceneUp.length === 3) {
+          object.quaternion.copy(uprightQuaternion(new THREE.Vector3(...(sceneUp as [number, number, number]))));
+          object.updateMatrixWorld(true);
+        }
         scene.add(object);
         const box = new THREE.Box3().setFromObject(object);
-        const sizeV = box.getSize(new THREE.Vector3());
+        const sizeV = fileBox.getSize(new THREE.Vector3());
         const size = sizeV.length();
         const c = box.getCenter(new THREE.Vector3());
         const s: MeshStats = {
@@ -549,7 +559,7 @@ export default function MeshViewer({
       renderer.dispose();
       node.replaceChildren();
     };
-  }, [url, legacyColors, reload]);
+  }, [url, legacyColors, reload, sceneUp?.join(",")]);
 
   useEffect(() => {
     api.current.configure();

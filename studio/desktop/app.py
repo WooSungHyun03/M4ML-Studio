@@ -150,7 +150,7 @@ def main(argv=None, *, application=None):
     from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence, QShortcut
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
     from PySide6.QtWebChannel import QWebChannel
-    from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
+    from PySide6.QtWebEngineCore import QWebEngineDownloadRequest, QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
     from PySide6.QtWebEngineWidgets import QWebEngineView
     from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QSplashScreen
     from PySide6.QtGui import QPixmap, QFontDatabase
@@ -167,6 +167,17 @@ def main(argv=None, *, application=None):
             font = app.font()
             font.setFamily(families[0])
             app.setFont(font)
+    # The product UI is Korean; Qt's own dialogs (file dialog buttons, overwrite confirmation)
+    # use Qt's shipped Korean translations instead of English, independent of the OS locale.
+    from PySide6.QtCore import QLibraryInfo, QLocale, QTranslator
+
+    QLocale.setDefault(QLocale(QLocale.Korean, QLocale.SouthKorea))
+    app._m4ml_translators = []
+    for name in ("qtbase_ko", "qt_ko"):
+        translator = QTranslator(app)
+        if translator.load(name, QLibraryInfo.path(QLibraryInfo.TranslationsPath)):
+            app.installTranslator(translator)
+            app._m4ml_translators.append(translator)
     app.setApplicationName("M4ML Studio")
     app.setOrganizationName("M4ML")
     app.setDesktopFileName("m4ml-studio")
@@ -298,16 +309,51 @@ def main(argv=None, *, application=None):
             QShortcut(QKeySequence("Ctrl+Q"), self, activated=self.close)
 
         def download(self, item):
+            """Save an export exactly where the user chose.
+
+            Qt's dialog already asks before replacing an existing file. The download goes to a
+            hidden temporary file in the same folder and is moved onto the chosen path only
+            after it completed, so an existing file survives a failed export and Chromium never
+            silently renames the result ("name (1).ply")."""
             suggested = item.downloadFileName() or "download"
             folder = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or str(Path.home())
-            path, _ = QFileDialog.getSaveFileName(self, "내보내기 저장", str(Path(folder) / suggested))
-            if not path:
-                item.cancel()
-                return
-            item.setDownloadDirectory(str(Path(path).parent))
-            item.setDownloadFileName(Path(path).name)
+            start = str(Path(folder) / suggested)
+            while True:
+                path, _ = QFileDialog.getSaveFileName(self, "내보내기 저장", start)
+                if not path:
+                    item.cancel()
+                    log("download cancelled")
+                    return
+                target = Path(path)
+                if target.parent.is_dir() and os.access(target.parent, os.W_OK | os.X_OK) and not target.is_dir():
+                    break
+                QMessageBox.warning(self, "내보내기 저장",
+                                    f"이 위치에는 저장할 수 없습니다. 쓰기 권한이 있는 다른 폴더를 선택하세요.\n{target.parent}")
+                start = str(Path(folder) / target.name)
+            temp = target.parent / f".{target.name}.{secrets.token_hex(4)}.part"
+            item.setDownloadDirectory(str(target.parent))
+            item.setDownloadFileName(temp.name)
+
+            def finished():
+                if not item.isFinished():
+                    return
+                if item.state() == QWebEngineDownloadRequest.DownloadState.DownloadCompleted:
+                    try:
+                        os.replace(temp, target)
+                        log(f"download {target}")
+                        return
+                    except OSError as exc:
+                        reason = str(exc)
+                else:
+                    reason = item.interruptReasonString() or "취소됨"
+                temp.unlink(missing_ok=True)
+                log(f"download failed {target}: {reason}")
+                if item.state() != QWebEngineDownloadRequest.DownloadState.DownloadCancelled:
+                    QMessageBox.warning(self, "내보내기 저장",
+                                        f"파일을 저장하지 못했습니다. 기존 파일은 그대로 두었습니다.\n{target}\n\n원인: {reason}")
+
+            item.isFinishedChanged.connect(finished)
             item.accept()
-            log(f"download {path}")
 
         def closeEvent(self, event):
             running = backend.active_jobs()

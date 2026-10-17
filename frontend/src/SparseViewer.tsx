@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Scan } from "lucide-react";
 import { api } from "./api";
+import { sceneUpFromCameras } from "./viewerCamera";
 
 interface Sparse {
   count: number;
@@ -42,6 +43,7 @@ export default function SparseViewer({ projectId, selected, onPick }: { projectI
     const frusta = new THREE.Group();
     scene.add(frusta);
     const camLines: Record<string, THREE.LineSegments> = {};
+    let up = new THREE.Vector3(0, -1, 0);
     let pointsMat: THREE.PointsMaterial | null = null,
       box = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
     const resize = () => {
@@ -56,8 +58,11 @@ export default function SparseViewer({ projectId, selected, onPick }: { projectI
         span = Math.max(box.getSize(new THREE.Vector3()).length(), 1e-6);
       camera.near = span / 1e4;
       camera.far = span * 100;
-      camera.up.set(0, -1, 0); // COLMAP world: y points down in most captures
-      camera.position.copy(c).add(new THREE.Vector3(0, -span * 0.3, -span * 0.7));
+      // Orbit about the scene's real up (mean camera image-up), as in the 3D viewers.
+      camera.up.copy(up);
+      const side = new THREE.Vector3(0, 0, -1).addScaledVector(up, up.z);
+      if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+      camera.position.copy(c).addScaledVector(up, span * 0.3).addScaledVector(side.normalize(), span * 0.7);
       camera.updateProjectionMatrix();
       controls.target.copy(c);
       controls.update();
@@ -94,6 +99,7 @@ export default function SparseViewer({ projectId, selected, onPick }: { projectI
         pointsMat = new THREE.PointsMaterial({ size, sizeAttenuation: false, vertexColors: true });
         scene.add(new THREE.Points(g, pointsMat));
         const s = r * 0.06;
+        up = sceneUpFromCameras(d.cameras.map((cam) => ({ rotation: cam.rotation, position: cam.center, height: 1, fy: 1 })));
         for (const cam of d.cameras) {
           const R = new THREE.Matrix3().set(...(cam.rotation.flat() as [number, number, number, number, number, number, number, number, number]));
           const c = new THREE.Vector3(...cam.center);

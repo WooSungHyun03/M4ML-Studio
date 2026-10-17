@@ -13,6 +13,7 @@ import { api, asset, post } from "../api";
 import type { StageCtx } from "../context";
 import { InspectorPortal } from "../dock";
 import { fmt, mb } from "../context";
+import { sceneUpFromCameras } from "../viewerCamera";
 import type { LiveInfo, LiveStats } from "../GaussianViewer";
 
 const MeshViewer = lazy(() => import("../MeshViewer"));
@@ -407,6 +408,7 @@ export function ModelStage({
               legacyColors={!mesh!.color}
               onStats={setStats}
               fileBase={fileBase}
+              sceneUp={live?.model?.cameras?.length ? sceneUpFromCameras(live.model.cameras).toArray() : null}
             />
           </Suspense>
           <InspectorPortal>

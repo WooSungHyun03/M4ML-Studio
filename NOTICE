@@ -1,30 +1,40 @@
-M4ML Studio 1.0.0 — INTERNAL CANDIDATE — INTERNAL RESEARCH / EVALUATION BUILD
+M4ML Studio 1.0.0 — NON-COMMERCIAL RESEARCH / EVALUATION RELEASE
 
-This archive is a local installation/verification artifact, NOT an approved public
-or commercial release. No upload or publication is performed by the build tools.
+Use, reproduction and redistribution are permitted for non-commercial research and evaluation
+only. Commercial use is not permitted. No warranty. No legal review has been performed; the
+summary below states the terms of the actual licence files shipped with this package.
 
-Original Object-Aware Loss / inherited Gaussian-Splatting code and native modules
-remain subject to LICENSE.md and their own notices (noncommercial research/evaluation).
-SAM code and local compatibility modifications remain under the SAM License;
-see licenses/SAM-source-LICENSE, licenses/SAM-checkpoint-LICENSE and patches/.
-SAM weights are NOT included. Obtain them from the official source under its terms.
+M4ML Studio application code and the original Object-Aware Loss / inherited
+Gaussian-Splatting code and native modules (diff-surfel-rasterization, simple-knn) are
+distributed under LICENSE.md (Inria/MPII Gaussian-Splatting License: non-commercial research
+and evaluation; redistribution only under that licence with its full text and all notices).
 
-The bundled COLMAP executable is BSD-3-Clause only as to COLMAP itself. Its actual
-47 shared libraries and static dependencies have separate terms. See
-licenses/colmap-runtime/inventory.json, the unmodified copyright/license texts
-there, runtime/colmap/BUILD_INFO.json and docs/M4ML_STUDIO_LICENSES.md.
-SuiteSparse SPQR and CHOLMOD include GPL/LGPL components. Copyright notices alone
-do not satisfy corresponding-source, relinking or license-compatibility duties.
-Those obligations and the complete combined distribution require resolution before
-any external distribution. No legal review or unrestricted commercial right is claimed.
+SIBR remote viewer (runtime/sibr; Gaussian-Splatting-Monitor @2b6190c + patches/sibr) is under
+the Inria SIBR / Gaussian-Splatting licences in runtime/sibr/licenses (non-commercial).
 
-Frontend runtime notices: licenses/frontend-MIT-NOTICES.
-NVIDIA driver is supplied by the host, never included. Bundled cudart has its own EULA.
-Python dependencies are installed separately from their upstream package providers;
-their terms also apply. User projects, photos, masks, checkpoints and secrets are excluded.
-The supplied M4ML logo is used for product identification; no separate logo license granted.
+SAM 3.1 code and local compatibility modifications (patches/sam3) remain under the SAM License;
+see licenses/SAM-source-LICENSE and licenses/SAM-checkpoint-LICENSE. SAM weights are NOT
+included. Obtain them from the official source under its terms.
 
-Noto Sans KR (Adobe,2014-2021) is bundled unchanged under SIL OFL1.1.
-See licenses/NotoSansKR-OFL.txt and NotoSansKR-SOURCE.json for original
-source/blob and SHA256. The font is separately licensed, not relicensed under
-the application research licence; do not sell the font by itself.
+The bundled COLMAP executable (BSD-3-Clause) is distributed with 47 unmodified Ubuntu 24.04 /
+conda-forge shared libraries; their licence texts are in licenses/colmap-runtime and the exact
+file list and hashes in licenses/colmap-runtime/inventory.json. SuiteSparse (CHOLMOD, SPQR:
+GPL-2.0-or-later; other modules LGPL/BSD) and the GCC 14 runtime libraries (GPL-3.0-or-later
+WITH GCC-exception-3.1) are copyleft: their complete corresponding source, together with the
+COLMAP, Ceres and OpenImageIO sources and build scripts, is published as
+M4ML-Studio-1.0.0-corresponding-source.tar next to this package (see
+licenses/CORRESPONDING-SOURCE.txt). The libraries are ordinary shared objects in
+runtime/colmap/lib and may be replaced. The bundled CUDA runtime (cudart 12.6) is
+redistributed under the NVIDIA CUDA EULA (Attachment A redistributable component); the NVIDIA
+driver is supplied by the host and never included.
+
+Python dependencies (PyTorch, Open3D, PySide6/Qt, ...) are downloaded during installation from
+their upstream providers under their own licences; they are not redistributed in this package.
+Frontend runtime notices: licenses/frontend-MIT-NOTICES. SBOM: licenses/sbom.json.
+
+Noto Sans KR (Adobe, 2014-2021) is bundled unchanged under the SIL Open Font License 1.1; see
+licenses/NotoSansKR-OFL.txt and NotoSansKR-SOURCE.json. The font is not relicensed under the
+application licence; do not sell the font by itself.
+
+The supplied M4ML logo is used for product identification; no separate logo licence is granted.
+User projects, photos, masks, checkpoints, trained results and secrets are never included.

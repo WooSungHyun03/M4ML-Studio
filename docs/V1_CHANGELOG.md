@@ -11,3 +11,5 @@ Public/commercial distribution is not approved. This local candidate includes th
 -Cancelled SAM startup closes GPU ownership before renderer handover. Original photo/checkpoint/mesh preservation and security boundaries remain.
 
 Install: README plus V1_MIGRATION.md. Supported verified target: Ubuntu24.04/X11/RTX4080/driver580.173.02. Candidate SHA, exact installed scope and remaining gates are in V1_RELEASE_REPORT.md and the candidate QUALITY_QA.json. Earlier archives are retained. No weights or driver included, no push/tag/upload.
+
+Final install hardening also bundles the original OFL Noto Sans KR font for Linux accounts without Korean fonts, reports the archive's source SHA in About, preserves app copies when OverlayFS rejects rename, and distinguishes diagnosis-in-progress from confirmed missing hardware. Actual non-root installation/migration and native/GPU evidence are recorded separately from fixture tests. Docker native QA needs adequate shared memory; no browser sandbox relaxation was used.

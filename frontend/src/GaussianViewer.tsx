@@ -14,7 +14,7 @@ import {
   Scan,
 } from "lucide-react";
 import { LiveError, post, postBlob } from "./api";
-import { applyFreeView, applyRecordedView, navigationUp } from "./viewerCamera";
+import { applyFreeView, applyRecordedView, navigationUp, sceneUpFromCameras } from "./viewerCamera";
 
 /** What GET /live-render returns for the project (see studio/api.py). */
 export interface LiveInfo {
@@ -194,12 +194,10 @@ export default function GaussianViewer({
       url = "",
       times: number[] = [];
     const target = new THREE.Vector3(...((info.model?.target as [number, number, number]) || [0, 0, 0]));
+    // Orbit about the scene's real up (training cameras), so photo views stay upright.
+    const sceneUp = sceneUpFromCameras(cameras);
     let scale = (info.radius || 1) * 2.5;
-    camera.position
-      .copy(target)
-      .add(new THREE.Vector3(scale * 0.75, scale * 0.42, scale * 0.75));
-    camera.lookAt(target);
-    controls.target.copy(target);
+    applyFreeView(camera, controls.target, target, info.radius || 1, sceneUp);
     controls.update();
 
     function setFromTrainingCamera(i: number) {
@@ -210,7 +208,7 @@ export default function GaussianViewer({
       controls.enableDamping = damping;
       const c = cameras[i];
       if (!c) {
-        applyFreeView(camera, controls.target, target, info.radius || 1);
+        applyFreeView(camera, controls.target, target, info.radius || 1, sceneUp);
         scale = (info.radius || 1) * 2.5;
         controls.update();
         dirty = true;
@@ -218,7 +216,7 @@ export default function GaussianViewer({
         return;
       }
       // Keep the recorded position/forward/FOV, normalize roll for Mesh parity.
-      applyRecordedView(camera, controls.target, c, target);
+      applyRecordedView(camera, controls.target, c, target, sceneUp);
       scale = camera.position.distanceTo(target);
       camera.near = Math.max(scale / 1000, 0.001);
       camera.far = scale * 200;
@@ -231,7 +229,7 @@ export default function GaussianViewer({
       // Look at the scene centre from the current direction, at the training-camera distance.
       const dir = camera.position.clone().sub(controls.target).normalize();
       controls.target.copy(target);
-      navigationUp(camera);
+      navigationUp(camera, sceneUp);
       camera.position.copy(target).addScaledVector(dir, scale || 1);
       camera.lookAt(target);
       controls.update();

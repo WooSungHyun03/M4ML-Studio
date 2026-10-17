@@ -84,9 +84,14 @@ try {
       await q.click(selector);await q.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65});await q.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65});await q.send('Input.insertText',{text});
       await q.evaluate(`document.querySelector(${JSON.stringify(selector)}).removeAttribute('data-native-test-input');true`);
     }
-    await fillSetting('학습 횟수','100');await fillSetting('알파 Polarization 가중치','0.45');await q.click('.task-settings button','저장');
+    async function saveGroup(){
+      await q.sleep(100);
+      if(await q.evaluate('[...document.querySelectorAll(".task-settings button")].some(b=>b.textContent.trim()==="저장" && !b.disabled)'))await q.click('.task-settings button','저장');
+      await q.waitFor(`!!document.querySelector('.task-settings [aria-label="세부 설정 닫기"]') && !document.querySelector('.task-settings [aria-label="세부 설정 닫기"]').disabled`);
+    }
+    await fillSetting('학습 횟수','100');await fillSetting('알파 Polarization 가중치','0.45');await saveGroup();
     await q.waitFor(`fetch('/api/projects/${project}/task-settings').then(r=>r.json()).then(s=>s.training.values.iterations===100)`);
-    await q.click('.task-settings nav button','3D 모델 생성');await fillSetting('생성 해상도','256');await q.click('.task-settings button','저장');
+    await q.click('.task-settings nav button','3D 모델 생성');await fillSetting('생성 해상도','256');await saveGroup();
     await q.waitFor(`fetch('/api/projects/${project}/task-settings').then(r=>r.json()).then(s=>s.mesh.values.mesh_res===256)`);
     check('test-only persisted schema settings',true);
     await q.click('.task-settings button[aria-label="세부 설정 닫기"]');

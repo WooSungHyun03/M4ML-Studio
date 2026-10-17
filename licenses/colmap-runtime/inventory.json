@@ -486,5 +486,5 @@
     }
   ],
   "unresolved_notices": [],
-  "public_redistribution": "BLOCKED: corresponding-source/relinking and legal compatibility review pending"
+  "public_redistribution": "Permitted with this inventory, the licence texts in this folder and the corresponding source archive (M4ML-Studio-<version>-corresponding-source.tar, scripts/collect_corresponding_source.sh) for SuiteSparse GPL/LGPL, GCC 14 runtime, Ceres, COLMAP and OpenImageIO."
 }

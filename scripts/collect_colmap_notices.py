@@ -55,7 +55,7 @@ def main():
     for obsolete in out.glob('*-copyright'):
         if obsolete.name not in used:
             obsolete.unlink()
-    (out/'inventory.json').write_text(json.dumps(dict(schema=1, colmap_commit=info['commit'], libraries=records, unresolved_notices=missing, public_redistribution='BLOCKED: corresponding-source/relinking and legal compatibility review pending'),indent=2)+'\n')
+    (out/'inventory.json').write_text(json.dumps(dict(schema=1, colmap_commit=info['commit'], libraries=records, unresolved_notices=missing, public_redistribution='Permitted with this inventory, the licence texts in this folder and the corresponding source archive (M4ML-Studio-<version>-corresponding-source.tar, scripts/collect_corresponding_source.sh) for SuiteSparse GPL/LGPL, GCC 14 runtime, Ceres, COLMAP and OpenImageIO.'),indent=2)+'\n')
     if missing: raise SystemExit(f'Unresolved license notices: {missing}')
     print(f'{len(records)} bundled libraries inventoried; public redistribution remains BLOCKED')
 

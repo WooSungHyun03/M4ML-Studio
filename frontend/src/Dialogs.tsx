@@ -76,7 +76,7 @@ export function Dialog({ kind, onClose, onSaveAs, projectName }: { kind: DialogK
               <b style={{ fontSize: 20 }}>M4ML Studio</b>
               <div className="kv" style={{ width: "100%" }}>
                 <span>버전</span><span>{String(about?.version ?? "—")}</span>
-                <span>배포 상태</span><span>내부 릴리스 후보 · 공개 배포 보류</span>
+                <span>배포 형태</span><span>{about?.channel === "internal-research" ? "내부 연구용 빌드" : about?.channel ? "비상업적 연구·평가용 릴리스" : "소스 실행 (개발)"}</span>
                 <span>소스</span><span className="mono">{String(about?.source_commit ?? about?.release ?? "—")}</span>
                 <span>실행 방식</span><span>{about?.desktop ? "데스크톱 앱" : "브라우저 개발 모드"}</span>
                 <span>데이터 폴더</span><span className="mono">{String(about?.data ?? "—")}</span>

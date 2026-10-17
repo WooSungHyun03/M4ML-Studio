@@ -2,6 +2,10 @@
 
 Uses Qt's own widget/event APIs; no global desktop input or replacement dialogs.
 Reuses a genuine existing colored mesh only for native export byte verification.
+Export cases: PLY and GLB byte identity at the exact chosen path, cancel (nothing written),
+overwrite of an existing file after Qt's confirmation (same path, no "(1)" copy), and an
+unwritable folder (product warns, dialog reopens, no partial file). Runs with
+QT_QPA_PLATFORM=offscreen so no window appears on a shared desktop.
 """
 import argparse
 import hashlib
@@ -39,7 +43,8 @@ store.update(mesh_project["id"], lambda d: d.update(input_mode="mesh", mesh={**i
 original = hashlib.sha256(photo.read_bytes()).hexdigest()
 from PySide6.QtCore import QCoreApplication, QMimeData, QPoint, QPointF, QTimer, QUrl, Qt
 from PySide6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QLineEdit, QMessageBox, QPushButton
+from PySide6.QtTest import QTest
 from studio.desktop.app import main
 
 QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
@@ -47,6 +52,17 @@ app = QApplication(["m4ml-studio-io-test"])
 state = {"step": "ready", "busy": False, "start": time.monotonic(), "checks": []}
 report = {"scope": "real product Qt dialogs, file drop, original colored PLY download; no new reconstruction", "checks": state["checks"]}
 window = None
+EXPORTS = [  # (name, link suffix, dialog answers, expected file, expected source)
+    {"name": "PLY", "ext": ".ply", "paths": ["exported.ply"]},
+    {"name": "GLB", "ext": ".glb", "paths": ["exported.glb"]},
+    {"name": "cancel", "ext": ".ply", "paths": [None]},
+    {"name": "overwrite", "ext": ".ply", "paths": ["exists.ply"]},
+    {"name": "unwritable", "ext": ".ply", "paths": ["readonly/blocked.ply", "after-invalid.ply"]},
+]
+(out / "exists.ply").write_bytes(b"old file that the user agreed to replace\n")
+(out / "readonly").mkdir()
+os.chmod(out / "readonly", 0o555)
+state["export"] = 0
 mime = QMimeData()
 mime.setUrls([QUrl.fromLocalFile(str(photo))])
 
@@ -73,10 +89,26 @@ def advance(step):
     print("native I/O:", step, flush=True)
 
 
+def select_dialog_path(dialog, path, proof):
+    dialog.selectFile(str(path))
+    fields = dialog.findChildren(QLineEdit)
+    print("native dialog fields:", [(e.objectName(), e.text(), e.isVisible()) for e in fields], flush=True)
+    if dialog.selectedFiles() != [str(path)]:
+        filename = next((e for e in fields if e.objectName() == "fileNameEdit"), None)
+        if filename is not None:
+            filename.setFocus()
+            QTest.keyClick(filename, Qt.Key_A, Qt.ControlModifier)
+            QTest.keyClicks(filename, str(path))
+    print("native selected paths:", dialog.selectedFiles(), "mode", str(dialog.fileMode()), flush=True)
+    state.setdefault("dialog_buttons", []).extend(b.text() for b in dialog.findChildren(QPushButton) if b.isVisible())
+    dialog.grab().save(str(out / proof))
+    dialog.accept()
+
+
 def tick():
     global window
     try:
-        if time.monotonic() - state["start"] > 120:
+        if time.monotonic() - state["start"] > 240:
             raise TimeoutError("native I/O step timed out: " + state["step"])
         if window is None:
             window = next((w for w in app.topLevelWidgets() if isinstance(w, QMainWindow)), None)
@@ -89,13 +121,41 @@ def tick():
                 QTimer.singleShot(600, dialog.accept)
             elif state["step"] == "file":
                 dialog.setDirectory(str(photo.parent))
-                dialog.selectFile(str(photo))
                 advance("file-result")
-                QTimer.singleShot(600, dialog.accept)
-            elif state["step"] == "download":
-                dialog.selectFile(str(out / "exported.ply"))
+                def select_photo():
+                    # QFileSystemModel may reset selection when directory loading
+                    # completes. Select after that load, as a person would.
+                    select_dialog_path(dialog, photo, "actual-file-dialog.png")
+                QTimer.singleShot(600, select_photo)
+            elif state["step"] in ("download", "download-result"):
+                case = EXPORTS[state["export"]]
+                answers = case.setdefault("pending", list(case["paths"]))
+                if state.get("dialog_id") == id(dialog):
+                    return
+                state["dialog_id"] = id(dialog)
+                state["dialogs"] = state.get("dialogs", 0) + 1
                 advance("download-result")
-                QTimer.singleShot(600, dialog.accept)
+                answer = answers.pop(0) if answers else None
+                def respond():
+                    if answer is None:
+                        dialog.grab().save(str(out / "actual-save-dialog-cancel.png"))
+                        dialog.reject()
+                    else:
+                        select_dialog_path(dialog, out / answer, f"actual-save-dialog-{case['name']}.png")
+                QTimer.singleShot(600, respond)
+            return
+        if isinstance(dialog, QMessageBox):
+            # Qt's own overwrite confirmation or the product's unwritable-folder warning.
+            if state.get("box_id") == id(dialog):
+                return
+            state["box_id"] = id(dialog)
+            text = dialog.text()
+            print("native message box:", text.replace("\n", " / "), flush=True)
+            state.setdefault("messages", []).append(text)
+            dialog.grab().save(str(out / f"actual-message-{len(state['messages'])}.png"))
+            yes = dialog.button(QMessageBox.Yes)
+            QTimer.singleShot(300, (yes.click if yes else dialog.accept))
+            state["dialog_id"] = None
             return
         if state["busy"]: return
         step = state["step"]
@@ -148,19 +208,10 @@ def tick():
             def mesh_ready(value):
                 if value:
                     record("actual color mesh loaded before native export")
-                    advance("download")
-                    window.view.page().runJavaScript('[...document.querySelectorAll(".toolbar a")].find(a=>a.download.endsWith(".ply")).click(); true')
+                    start_export()
             js('Number(document.querySelector(".three-host")?.dataset.colorMeshes || 0) > 0', mesh_ready)
         elif step == "download-result":
-            downloaded = out / "exported.ply"
-            if downloaded.exists() and downloaded.stat().st_size == mesh.stat().st_size:
-                assert hashlib.sha256(downloaded.read_bytes()).hexdigest() == hashlib.sha256(mesh.read_bytes()).hexdigest()
-                assert hashlib.sha256(photo.read_bytes()).hexdigest() == original
-                record("native save dialog exports byte-identical original PLY")
-                record("source photo unchanged")
-                report["pass"] = True
-                timer.stop()
-                window.close()
+            check_export()
     except Exception as exc:
         report["error"] = repr(exc)
         report["step"] = state["step"]
@@ -168,6 +219,71 @@ def tick():
         if isinstance(app.activeModalWidget(), QFileDialog): app.activeModalWidget().reject()
         if window: window.close()
         else: app.quit()
+
+
+def source_for(ext):
+    return mesh if ext == ".ply" else dest / "preview.glb"
+
+
+def start_export():
+    case = EXPORTS[state["export"]]
+    state["export_started"] = time.monotonic()
+    state["before"] = sorted(p.name for p in out.iterdir())
+    advance("download")
+    window.view.page().runJavaScript(
+        f'[...document.querySelectorAll(".toolbar a")].find(a=>a.download.endsWith("{case["ext"]}")).click(); true')
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def check_export():
+    case = EXPORTS[state["export"]]
+    src = source_for(case["ext"])
+    parts = [p.name for p in out.rglob("*.part")]
+    done = False
+    if case["name"] == "cancel":
+        if time.monotonic() - state["export_started"] > 4 and state.get("dialog_id"):
+            after = sorted(p.name for p in out.iterdir() if not p.name.startswith("actual-"))
+            before = [n for n in state["before"] if not n.startswith("actual-")]
+            assert after == before and not parts, (before, after, parts)
+            record("cancelled save dialog writes nothing")
+            done = True
+    else:
+        target = out / case["paths"][-1]
+        if target.exists() and target.stat().st_size == src.stat().st_size and not parts:
+            assert sha(target) == sha(src), case
+            if case["name"] == "PLY":
+                record("native save dialog exports byte-identical original PLY at the chosen path")
+            elif case["name"] == "GLB":
+                assert target.read_bytes()[:4] == b"glTF"
+                record("native save dialog exports byte-identical GLB (glTF) at the chosen path")
+            elif case["name"] == "overwrite":
+                assert any("이미" in m for m in state.get("messages", [])), state.get("messages")  # Korean Qt translation
+                assert not list(out.glob("exists (*")) and not list(out.glob("exists*1*")), list(out.iterdir())
+                record("existing file replaced at the same path only after Qt's overwrite confirmation")
+            elif case["name"] == "unwritable":
+                assert any("저장할 수 없습니다" in m for m in state.get("messages", [])), state.get("messages")
+                assert not any((out / "readonly").iterdir())
+                record("unwritable folder warns, reopens the dialog, then saves to the new path")
+            done = True
+    if done:
+        state["export"] += 1
+        state["dialog_id"] = None
+        if state["export"] < len(EXPORTS):
+            start_export()
+        else:
+            assert hashlib.sha256(photo.read_bytes()).hexdigest() == original
+            assert sha(mesh) == sha(dest / "fuse_post.ply")
+            record("source photo and project mesh unchanged")
+            report["pass"] = True
+            report["messages"] = state.get("messages", [])
+            report["dialog_buttons"] = sorted(set(state.get("dialog_buttons", [])))
+            assert not {"Save", "Open", "Cancel", "Choose"} & set(report["dialog_buttons"]), report["dialog_buttons"]
+            record("Qt dialogs shown in Korean")
+            timer.stop()
+            window.close()
 
 
 timer = QTimer()

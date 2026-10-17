@@ -34,6 +34,7 @@ import { BottomPanel } from "./BottomPanel";
 import { Dialog } from "./Dialogs";
 import type { DialogKind } from "./Dialogs";
 import { DockContext, Splitter, useLayout } from "./dock";
+import type { Layout } from "./dock";
 import {
   isDesktop,
   logFolder,
@@ -107,6 +108,9 @@ export default function App() {
     [selection, setSelection] = useState<Selection>(null),
     [assets, setAssets] = useState<Assets | null>(null),
     [width, setWidth] = useState(window.innerWidth),
+    [height, setHeight] = useState(window.innerHeight),
+    // On short windows the bottom panel only shows when asked for or while a job runs.
+    [shortOpen, setShortOpen] = useState(false),
     [inspectorNode, setInspectorNode] = useState<HTMLElement | null>(null),
     [theme, setThemeState] = useState(() => {
       try {
@@ -140,7 +144,10 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
   useEffect(() => {
-    const r = () => setWidth(window.innerWidth);
+    const r = () => {
+      setWidth(window.innerWidth);
+      setHeight(window.innerHeight);
+    };
     window.addEventListener("resize", r);
     return () => window.removeEventListener("resize", r);
   }, []);
@@ -367,7 +374,11 @@ export default function App() {
     // narrow windows: side docks collapse automatically (toggle buttons still work at ≥ 760px)
     explorer: !!project && layout.explorer && width >= 1080,
     inspector: !!project && layout.inspector && width >= 900,
-    bottom: layout.bottom,
+    bottom: layout.bottom && (height >= 900 || shortOpen || !!active),
+  };
+  const showBottom = (show: boolean, tab?: Layout["bottomTab"]) => {
+    update(tab ? { bottom: show, bottomTab: tab } : { bottom: show });
+    setShortOpen(show);
   };
   const menus: Menu[] = useMemo(
     () => [
@@ -499,21 +510,13 @@ export default function App() {
           {
             label: "작업 패널",
             shortcut: "Ctrl+J",
-            checked: layout.bottom && layout.bottomTab === "tasks",
-            action: () =>
-              update({
-                bottom: !(layout.bottom && layout.bottomTab === "tasks"),
-                bottomTab: "tasks",
-              }),
+            checked: effective.bottom && layout.bottomTab === "tasks",
+            action: () => showBottom(!(effective.bottom && layout.bottomTab === "tasks"), "tasks"),
           },
           {
             label: "로그 패널",
-            checked: layout.bottom && layout.bottomTab === "console",
-            action: () =>
-              update({
-                bottom: !(layout.bottom && layout.bottomTab === "console"),
-                bottomTab: "console",
-              }),
+            checked: effective.bottom && layout.bottomTab === "console",
+            action: () => showBottom(!(effective.bottom && layout.bottomTab === "console"), "console"),
           },
           { separator: true },
           {
@@ -660,13 +663,13 @@ export default function App() {
         ],
       },
     ],
-    [projects, project, id, active, layout, theme, stage, selection, masking],
+    [projects, project, id, active, layout, theme, stage, selection, masking, height, shortOpen],
   );
   // global keyboard shortcuts (menu accelerators)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      const typing = !!t.closest("input,textarea,select");
+      const typing = t instanceof Element && !!t.closest("input,textarea,select");
       const ctrl = e.ctrlKey || e.metaKey;
       const k = e.key.toLowerCase();
       if (ctrl && k === "n") { e.preventDefault(); newProject(); } else if (ctrl && k === "o") { e.preventDefault(); openProject(); } else if (ctrl && e.shiftKey && k === "s") { e.preventDefault(); if (project && !active) setDialog("saveas"); } else if (ctrl && k === "s") { e.preventDefault(); if (dirty.current) emit("save"); else if (project) setNotice("모든 변경 사항이 자동으로 저장되어 있습니다."); } else if (
@@ -678,7 +681,7 @@ export default function App() {
       ) { e.preventDefault(); emit("select-all"); } else if (ctrl && k === "e" && project?.mesh) { e.preventDefault(); exportModel(); }
       else if (ctrl && k === "b") { e.preventDefault(); update({ explorer: !layout.explorer }); }
       else if (ctrl && k === "i") { e.preventDefault(); update({ inspector: !layout.inspector }); }
-      else if (ctrl && k === "j") { e.preventDefault(); update({ bottom: !layout.bottom }); }
+      else if (ctrl && k === "j") { e.preventDefault(); showBottom(!effective.bottom); }
       else if (ctrl && k === ",") { e.preventDefault(); setShowSettings("device"); }
       else if (ctrl && k === "r" && rerunnable(stage)) { e.preventDefault(); rerun(stage); }
       else if (ctrl && k === "q") { e.preventDefault(); void shutdown(); }
@@ -911,9 +914,9 @@ export default function App() {
               </button>
               <button
                 className="icon-btn"
-                aria-pressed={layout.bottom}
+                aria-pressed={effective.bottom}
                 title="아래 패널 (Ctrl+J)"
-                onClick={() => update({ bottom: !layout.bottom })}
+                onClick={() => showBottom(!effective.bottom)}
               >
                 <PanelBottom size={15} />
               </button>
@@ -1073,14 +1076,14 @@ export default function App() {
                   ),
                 })
               }
-              onDouble={() => update({ bottom: false })}
+              onDouble={() => showBottom(false)}
             />
             <div className="dock bottom" style={{ height: `min(${layout.bottomH}px, max(110px, calc(100vh - 420px)))` }}>
               <BottomPanel
                 project={project}
                 tab={layout.bottomTab}
                 setTab={(t) => update({ bottomTab: t })}
-                onHide={() => update({ bottom: false })}
+                onHide={() => showBottom(false)}
                 onCancel={cancel}
                 onRetry={rerun}
                 selection={selection}
@@ -1143,7 +1146,7 @@ export default function App() {
             </div>
           ) : null}
           {!effective.bottom && (
-            <button onClick={() => update({ bottom: true })}>
+            <button onClick={() => showBottom(true)}>
               <PanelBottom size={12} />
               패널 열기
             </button>
