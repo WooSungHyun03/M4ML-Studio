@@ -15,8 +15,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -28,10 +28,12 @@ jobs:
   python:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+      - name: COLMAP for the camera-import tests (Ubuntu package; the GPU build is not in Git)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends colmap
       - name: Install CPU test dependencies (pinned to the verified runtime)
         run: |
           python -m pip install --upgrade pip
@@ -44,7 +46,7 @@ jobs:
   repository-hygiene:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: No weights, user data or secrets tracked
         run: |
           set -e
