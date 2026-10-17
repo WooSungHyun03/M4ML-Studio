@@ -171,28 +171,37 @@ def get(device, log: Path):
             continue
         try:
             session = _Session(device, log, idle)
+            with _guard:
+                cancelled = device in _cancelled
+                _cancelled.discard(device)
+                if not cancelled:
+                    _sessions[device] = session
+                    _ensure_reaper()
+            if cancelled:
+                session.close()
+                raise SessionError("GPU 작업이 시작되어 객체 선택을 잠시 멈췄습니다. 작업이 끝난 뒤 다시 클릭하세요.")
+            return session
         finally:
             with _guard:
                 _starting.pop(device, None)
             waiter.set()
-        with _guard:
-            if device in _cancelled:
-                _cancelled.discard(device)
-                session.close()
-                raise SessionError("GPU 작업이 시작되어 객체 선택을 잠시 멈췄습니다. 작업이 끝난 뒤 다시 클릭하세요.")
-            _sessions[device] = session
-            _ensure_reaper()
-            return session
 
 
-def release(device=None):
+def release(device=None, *, wait=False):
     """Close sessions (all, or for one GPU) so a GPU job can take the device."""
     with _guard:
         keys = list(_sessions) if device is None else [k for k in _sessions if k == str(device)]
         closing = [_sessions.pop(k) for k in keys]
         _cancelled.update(_starting if device is None else [d for d in _starting if d == str(device)])
+        starting = [event for key, event in _starting.items() if device is None or key == str(device)]
     for session in closing:
         session.close()
+    # Wait outside the registry lock. A cancelled constructor still owns its GPU
+    # until it has finished loading and closed; its event now signals after close.
+    if wait:
+        for event in starting:
+            if not event.wait(60):
+                raise SessionError("객체 선택의 GPU 준비가 끝나기를 기다리고 있습니다. 잠시 후 다시 연결하세요.")
 
 
 def status():

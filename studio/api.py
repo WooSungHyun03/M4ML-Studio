@@ -312,15 +312,20 @@ def engines_info():
         "gpus": h["gpus"],
         "live_sessions": segmentation_session.status(),
         "live_render": __import__("studio.live_render", fromlist=["status"]).status(),
-        "licenses": [
-            {"component": "Object-Aware Loss / 2DGS / Gaussian-Splatting", "license": "비상업적 연구·평가 전용 (licenses/)", "commercial": False},
-            {"component": "SIBR remote viewer (Gaussian-Splatting-Monitor, 외부 뷰어)", "license": "Inria 비상업적 연구·평가 전용 (runtime/sibr/licenses/)", "commercial": False},
-            {"component": "SAM 3.1 코드·체크포인트", "license": "SAM License (licenses/), 체크포인트 이용 조건 별도 확인", "commercial": None},
-            {"component": "COLMAP 자체", "license": "BSD-3-Clause (종속 라이브러리 별도)", "commercial": True},
-            {"component": "내장 정합 런타임 종속 라이브러리", "license": "SuiteSparse GPL/LGPL 포함. 소스 제공·재링크·결합 배포 검토 미완료. 공개 배포 보류", "commercial": None},
-            {"component": "M4ML Studio 앱 코드", "license": "LICENSE.md 참조", "commercial": None},
-        ],
+        "licenses": json.loads((ROOT / "licenses/catalog.json").read_text()),
     }
+
+
+@app.get("/api/license-text/{component_id}")
+def license_text(component_id: str):
+    entries = json.loads((ROOT / "licenses/catalog.json").read_text())
+    entry = next((row for row in entries if row["id"] == component_id), None)
+    if entry is None:
+        raise HTTPException(404, "해당 구성 요소의 원문을 찾을 수 없습니다.")
+    path = (ROOT / entry["text"]).resolve()
+    if not path.is_relative_to(ROOT) or not path.is_file() or path.stat().st_size > 1024**2:
+        raise HTTPException(404, "설치된 라이선스 원문을 찾을 수 없습니다.")
+    return {"component": entry["component"], "source": entry["source"], "text": path.read_text(errors="replace")}
 
 
 class CheckpointPath(Strict):
@@ -665,7 +670,6 @@ def import_existing(project_id: str, body: ImportOptions):
 
 @app.post("/api/projects/{project_id}/mesh-file")
 async def import_mesh_file(project_id: str, file: UploadFile):
-    from studio.mesh import validate_mesh
     import uuid
 
     with editable(project_id) as (p, root):
@@ -681,45 +685,16 @@ async def import_mesh_file(project_id: str, file: UploadFile):
         work.mkdir(parents=True)
         source = work / ("source" + extension)
         atomic_bytes(source, data)
-        from studio.mesh import validate_mesh
-
-        report = validate_mesh(source, work)
-        if extension == ".ply":
-            shutil.copyfile(source, work / "fuse_post.ply")
-        else:
-            import trimesh
-            from studio.mesh import glb_colors, linear_to_srgb
-            import numpy as np
-
-            mesh = trimesh.load(source, force="mesh", process=False)
-            colors = glb_colors(source)
-            if colors is not None:
-                mesh.visual.vertex_colors = np.column_stack(
-                    [
-                        np.rint(np.clip(linear_to_srgb(colors), 0, 1) * 255).astype(
-                            np.uint8
-                        ),
-                        np.full(len(colors), 255, np.uint8),
-                    ]
-                )
-            mesh.export(work / "fuse_post.ply")
-        report = validate_mesh(work / "fuse_post.ply", work)
+        from studio.result_artifacts import inspect_result
+        finding = inspect_result(source, work)
+        if not finding["valid"] or finding["kind"] != "mesh":
+            raise ValueError(finding.get("error") or "유효한 삼각형 메시를 선택하세요.")
+        # Folder and file import share one colour-preserving adapter.
+        _import_mesh(project_id, source, None)
 
         def finish(doc):
-            doc["mesh"] = {
-                **report,
-                "path": str(work.relative_to(root)),
-                "source_name": file.filename,
-            }
-            doc["stages"]["mesh"] = "completed"
+            doc["mesh"]["source_name"] = file.filename
             doc["input_mode"] = "mesh"
-            doc["stage_provenance"] = {
-                "mesh": {
-                    "stage_source": "imported",
-                    "stage_state": "verified",
-                    "skip_reason": "existing_valid_output",
-                }
-            }
 
         return store.update(project_id, finish)
 
@@ -2041,6 +2016,13 @@ def _training_rows(project_id, job_id, depth):
 
 
 if (ROOT / "frontend/dist").is_dir():
+    class StudioStaticFiles(StaticFiles):
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            if path in (".", "", "index.html") or response.headers.get("content-type", "").startswith("text/html"):
+                response.headers["Cache-Control"] = "no-store"
+            return response
+
     app.mount(
-        "/", StaticFiles(directory=ROOT / "frontend/dist", html=True), name="frontend"
+        "/", StudioStaticFiles(directory=ROOT / "frontend/dist", html=True), name="frontend"
     )

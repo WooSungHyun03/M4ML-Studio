@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { CircleCheck, CircleX, Moon, Power, Sun, X } from "lucide-react";
 import { api, post } from "./api";
 import type { Health } from "./api";
+import { diagnosticSummary, engineRows } from "./engineInfo";
 
 type Engines = {
   engines: Record<string, Record<string, unknown>>;
@@ -9,7 +10,7 @@ type Engines = {
   runtime_path: string;
   gpus: Health["gpus"];
   live_sessions: Record<string, Record<string, unknown>>;
-  licenses: { component: string; license: string; commercial: boolean | null }[];
+  licenses: { id: string; component: string; license: string; commercial: boolean | null; commercial_status: string; version: string; obligation: string }[];
 };
 const CAPABILITY: Record<string, string> = {
   camera: "카메라 정합",
@@ -23,9 +24,7 @@ const CAPABILITY: Record<string, string> = {
 function Value({ v }: { v: unknown }) {
   if (v == null) return <span className="t4">—</span>;
   if (typeof v === "boolean") return v ? <span className="ok">예</span> : <span className="t3">아니요</span>;
-  if (Array.isArray(v)) return <span>{v.join(", ")}</span>;
-  if (typeof v === "object") return <code style={{ fontSize: 11 }}>{JSON.stringify(v)}</code>;
-  return <span>{String(v)}</span>;
+  return <span>{diagnosticSummary(v)}</span>;
 }
 
 export function SettingsDrawer({
@@ -50,6 +49,7 @@ export function SettingsDrawer({
     [path, setPath] = useState(""),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
+  const [licenseText, setLicenseText] = useState<{component:string;text:string}|null>(null);
   useEffect(() => {
     if (tab === "engines" || tab === "license") api<Engines>("/engines").then(setInfo).catch((e) => setError(e.message));
   }, [tab]);
@@ -131,8 +131,8 @@ export function SettingsDrawer({
               <div className="engine-card" key={cap}>
                 <h4>{e.error ? <CircleX size={14} className="err" /> : <CircleCheck size={14} className="ok" />}{CAPABILITY[cap] || cap}<span className="t3" style={{ fontWeight: 400 }}>· {String(e.name || e.key || "")}</span></h4>
                 <div className="kv">
-                  {Object.entries(e).filter(([k]) => !["capability", "name"].includes(k)).map(([k, v]) => (
-                    <Fragment key={k}><span className="mono">{k}</span><Value v={v} /></Fragment>
+                  {engineRows(e).map(({key, label, value}) => (
+                    <Fragment key={key}><span>{label}</span><Value v={value} /></Fragment>
                   ))}
                 </div>
               </div>
@@ -165,14 +165,15 @@ export function SettingsDrawer({
           <div className="sec col">
             <p className="hint">M4ML Studio는 아래 구성 요소를 포함하거나 사용합니다. 비상업 조건이 있는 구성 요소 때문에 전체 소프트웨어를 자유롭게 상업 배포할 수 없습니다.</p>
             <table>
-              <thead><tr><th>구성 요소</th><th>조건</th><th>상업 이용</th></tr></thead>
+              <thead><tr><th>구성 요소</th><th>조건</th><th>이용·배포 상태</th></tr></thead>
               <tbody>
                 {info?.licenses.map((l) => (
-                  <tr key={l.component}><td>{l.component}</td><td>{l.license}</td><td>{l.commercial === false ? <span className="err">불가</span> : l.commercial ? <span className="ok">가능</span> : <span className="warn">확인 필요</span>}</td></tr>
+                  <tr key={l.component}><td>{l.component}<p className="hint">{l.version}</p><button className="btn sm" onClick={() => { void api<{component:string;text:string}>(`/license-text/${l.id}`).then(setLicenseText).catch(e=>setError(e.message)); }}>원문 보기</button></td><td>{l.license}<p className="hint">{l.obligation}</p></td><td>{l.commercial_status}</td></tr>
                 ))}
               </tbody>
             </table>
             <p className="hint">원문은 설치 폴더의 licenses/ 와 docs/GPU_COLMAP_BUILD.md 에 있습니다.</p>
+            {licenseText && <section aria-label="라이선스 원문"><h3>{licenseText.component}</h3><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere",maxHeight:320,overflow:"auto",fontSize:12}}>{licenseText.text}</pre></section>}
           </div>
         )}
         {error && <p className="error" style={{ padding: 16 }}>{error}</p>}

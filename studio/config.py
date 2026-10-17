@@ -14,7 +14,9 @@ import json, os, shutil
 from pathlib import Path
 from studio.doctor import atomic_json, ROOT
 
-VERSION = "0.5.0"
+from studio import __version__
+
+VERSION = __version__
 SETTINGS_SCHEMA = 2
 
 

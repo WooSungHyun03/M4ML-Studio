@@ -248,6 +248,9 @@ def main(argv=None, *, application=None):
             # which must be released before its persistent WebEngine profile.
             self.view = QWebEngineView(self)
             profile = QWebEngineProfile("m4ml-studio", self)  # persistent: localStorage, layout, theme
+            # Loopback assets are inexpensive; stale cached entry HTML can select
+            # an old UI after an upgrade. Keep project/preferences storage only.
+            profile.setHttpCacheType(QWebEngineProfile.NoCache)
             profile.setPersistentStoragePath(str(DATA / "webengine"))
             profile.setCachePath(str(CACHE / "webengine"))
             profile.downloadRequested.connect(self.download)

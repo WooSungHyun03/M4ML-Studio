@@ -40,7 +40,7 @@ class Sam31SegmentationProvider(SegmentationProvider):
             try:
                 data = json.loads(verified.read_text())
                 base["checkpoint_sha256"] = data.get("sha256")
-                base["checkpoint_tensors"] = data.get("tensors") or data.get("tensor_count")
+                base["checkpoint_tensors"] = data.get("tensor_count") or len(data.get("tensors", {}))
             except ValueError:
                 pass
         return base

@@ -72,6 +72,14 @@ class ResultTests(unittest.TestCase):
         self.assertTrue(result["colors"], result)
         self.assertGreater(result["color"]["mean_chroma"], 0.5)
         self.assertEqual(hashlib.sha256(glb.read_bytes()).hexdigest(), before)
+        uploaded = self.store.create("파일로 색상 가져오기")
+        response = self.client.post(
+            f'/api/projects/{uploaded["id"]}/mesh-file', headers=self.headers,
+            files={"file": ("실제 색상.glb", glb.read_bytes(), "model/gltf-binary")},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["mesh"]["colors"])
+        self.assertEqual(response.json()["mesh"]["source_name"], "실제 색상.glb")
         # Texture baking is not implemented: reject explicitly instead of losing colour.
         textured = trimesh.creation.box()
         textured.visual = trimesh.visual.texture.TextureVisuals(

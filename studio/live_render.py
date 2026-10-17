@@ -213,7 +213,10 @@ def start(device: str, project_id: str, model: dict, log: Path) -> dict:
     from studio import segmentation_session
 
     if not (_sessions.get(device) and _sessions[device].project_id == project_id):
-        segmentation_session.release(device)
+        try:
+            segmentation_session.release(device, wait=True)
+        except segmentation_session.SessionError as exc:
+            raise LiveRenderError(str(exc), "busy") from exc
     with _guard:
         current = _sessions.get(device)
         if current and current.alive() and current.project_id == project_id \

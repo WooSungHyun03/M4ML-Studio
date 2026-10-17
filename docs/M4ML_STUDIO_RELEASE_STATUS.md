@@ -1,3 +1,9 @@
+# v1.0.0 현재 판정 (2026-10-17)
+
+내부 후보 패키지·신규 설치·업그레이드 최종 검증 진행 중. 현재 상태는 `dual-agent-harness/release-v1/solo-finish/STATE/STATUS.md`와 `docs/V1_RELEASE_REPORT.md`를 따른다. 아래0.3/0.5 검증 원장은 이력이며 새로운1.0 전체 통과로 소급하지 않는다. 공개/상업 권리 G8은 BLOCKED.
+
+---
+
 # M4ML Studio 0.5 — 현재 Quality Harness 판정
 
 2026-10-16: 내부 연구용 실제 검증 범위는 [Quality Harness 보고서](QUALITY_HARNESS_REPORT.md)를 기준으로 한다. 새16장 GPU COLMAP/SAM3.1/원본30000회/TSDF1024 컬러 메시,12500회 재개, 신규 non-root 설치본 B/C 각1000회, 네이티브 파일 I/O를 실행했다. **공개·상업 배포 HOLD**이며 직접 SIBR 소켓의 로컬 사용자 인증과 다른 하드웨어/Wayland/외부 초보자 연구는 미해결·미검증이다. 최신 고정 압축본의 체크섬·설치 결과는 번들 옆 QA 및 quality-harness/state/EVIDENCE.md에 기록한다.

@@ -85,6 +85,21 @@ class SettingsAPITests(unittest.TestCase):
     setUp = fixtures.StateAndAPITests.setUp
     tearDown = fixtures.StateAndAPITests.tearDown
 
+    def test_ui_entry_is_not_cached_across_upgrades(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("cache-control"), "no-store")
+
+    def test_license_catalog_serves_only_packaged_original_texts(self):
+        from studio.config import ROOT
+        import json
+        entries = json.loads((ROOT / "licenses/catalog.json").read_text())
+        for entry in entries:
+            response = self.client.get("/api/license-text/" + entry["id"])
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["text"], (ROOT / entry["text"]).read_text(errors="replace"))
+        self.assertEqual(self.client.get("/api/license-text/not-a-component").status_code, 404)
+
     def test_pending_prompt_freezes_segmentation_settings_and_preserves_masks(self):
         fixtures.StateAndAPITests.seed_review(self)
         original = copy.deepcopy(self.store.get(self.id)["masks"])

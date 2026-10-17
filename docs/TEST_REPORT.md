@@ -1,3 +1,9 @@
+# v1.0.0 solo track — 2026-10-17
+
+Current candidate results and precise original/new scopes are in [V1_RELEASE_REPORT.md](V1_RELEASE_REPORT.md). Source fixes, actual native25checks/27screens and new raw16GPU1000-checkpoint pipeline are verified; clean candidate installation and lifecycle gates are still pending at this checkpoint. Prior test history below is retained verbatim and not relabeled as fresh1.0 testing.
+
+---
+
 # M4ML Studio — 세부 설정 및 기존 3D 결과 검증 (2026-10-17)
 
 이번 작업은 `codex/task-settings-artifact-import`의 별도 기능 작업이다. 기존 Quality Harness Phase0–7 및 이전 릴리스 판정을 소급 변경하지 않는다. Ubuntu24.04/X11, RTX4080 16GB, driver580.173.02, Python3.10/Torch2.5.1+cu118 단일 GPU 환경에서 검사했다. 원본 `train.py`, `render.py`, `arguments/`, `scene/`, `gaussian_renderer/`, `utils/`, native submodules는3221821b 대비 변경하지 않았다.

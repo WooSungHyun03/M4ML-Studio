@@ -148,6 +148,10 @@ def main():
         (sam / ".source-revision").write_text(
             json.loads((ROOT / "SOURCES.json").read_text())["sam31"]["revision"]
         )
+        from studio.release_inventory import inventory
+        (app / "licenses/sbom.json").write_text(
+            json.dumps(inventory(app), indent=2, ensure_ascii=False) + "\n"
+        )
         files = {
             p.relative_to(app).as_posix(): digest(p)
             for p in sorted(app.rglob("*"))

@@ -2,7 +2,7 @@
 
 여러 사진에서 객체를 클릭해 선택하고, 마스크를 확인한 뒤 GPU 학습으로 **실제 색상을 가진 3D 메시**를 만드는 Ubuntu 로컬 앱입니다. 사진·마스크·모델은 컴퓨터 안에 저장합니다. 로그인이나 클라우드 업로드는 없습니다.
 
-**0.5.0 내부 연구·평가용 빌드입니다.** 기술 검증과 공개 재배포 승인은 별개입니다. SuiteSparse GPL/LGPL 소스 제공·재링크/결합 배포 검토와 원본 비상업 연구 조건 때문에 공개·상업 릴리스는 보류합니다. [배포 판정](docs/M4ML_STUDIO_RELEASE_STATUS.md), [라이선스](docs/M4ML_STUDIO_LICENSES.md), [시험 보고서](docs/TEST_REPORT.md)를 확인하세요. 공개 다운로드 URL은 제공하지 않습니다.
+**1.0.0 내부 릴리스 후보입니다. 공개 출시 승인 상태는 아닙니다.** 기술 검증과 공개 재배포 승인은 별개입니다. SuiteSparse GPL/LGPL 소스 제공·재링크/결합 배포 검토와 원본 비상업 연구 조건 때문에 공개·상업 릴리스는 보류합니다. [배포 판정](docs/M4ML_STUDIO_RELEASE_STATUS.md), [라이선스](docs/M4ML_STUDIO_LICENSES.md), [시험 보고서](docs/TEST_REPORT.md)를 확인하세요. 공개 다운로드 URL은 제공하지 않습니다.
 
 ## 지원 환경과 준비
 
@@ -24,9 +24,9 @@ sudo apt install python3 git curl ca-certificates build-essential gcc-11 g++-11 
 내부 검증 압축본과 같은 이름의 SHA256 파일을 받은 폴더에서:
 
 ```bash
-sha256sum -c M4ML-Studio-0.5.0-linux-x86_64.tar.gz.sha256
-tar -xzf M4ML-Studio-0.5.0-linux-x86_64.tar.gz
-cd M4ML-Studio-0.5.0
+sha256sum -c M4ML-Studio-1.0.0-linux-x86_64.tar.gz.sha256
+tar -xzf M4ML-Studio-1.0.0-linux-x86_64.tar.gz
+cd M4ML-Studio-1.0.0
 ./scripts/install.sh
 ```
 

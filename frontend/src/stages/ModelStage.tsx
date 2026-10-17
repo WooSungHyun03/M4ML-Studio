@@ -290,9 +290,9 @@ export function ModelStage({
                   </div>
                 </div>
                 <div>
-                  <div className="l">학습 반복</div>
+                  <div className="l">{live.artifact ? "결과 출처" : "학습 반복"}</div>
                   <div className="big-n" style={{ fontSize: 20 }}>
-                    {fmt(iteration ?? live.model.iteration)}
+                    {live.artifact ? "독립 파일" : fmt(iteration ?? live.model.iteration)}
                   </div>
                 </div>
               </div>

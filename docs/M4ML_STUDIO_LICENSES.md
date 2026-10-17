@@ -1,3 +1,13 @@
+# v1.0.0 내부 후보 — 추가 실물 감사 (2026-10-17)
+
+`licenses/catalog.json`과 설치 앱의 **설정 → 라이선스 → 원문 보기**에 실제8개 구성 항목의 버전·원문·의무·구체적 미해결 사항을 표시한다. `licenses/sbom.json`은 패키징 시 생성되며 실제COLMAP47공유라이브러리 SHA/원문50개, 소스 pin, frontend lockfile 및 별도 설치 Python 패키지 metadata를 구분한다. SBOM 생성 전에 실제 파일 hash를 대조하며 무게 파일은 포함하지 않는다. GNU LGPL/GPL 원문도 보존한다.
+
+공식 보조 근거: [Qt6.8 WebEngine 조건](https://doc.qt.io/qt-6.8/qtwebengine-licensing.html), [CUDA12.6.2 EULA/Attachment A](https://docs.nvidia.com/cuda/archive/12.6.2/eula/index.html), [고정 SAM 원문](https://github.com/facebookresearch/sam3/blob/7f473cfd983d5eb43040ff608f66bff0d7bdcb53/LICENSE). 이 링크는 보조 자료이며 정확한 포함 pin의 로컬 원문이 기준이다.
+
+**미해결 권리**: Inria/MPII 비상업 라이선스의 공개·상업 시나리오 권한, SuiteSparse 소스 제공/재링크·결합 배포, NVIDIA 정확한 구성별 재배포 조건과 Qt/Chromium 준수 경로. 각 권리자 또는 적격 검토자의 승인이 필요하다. 고지나 SBOM만으로 해결되었다고 보지 않는다. 공개·상업 배포는 HOLD. 다음 이전 기록은 삭제하지 않는다.
+
+---
+
 # M4ML Studio 0.3.0 — 라이선스 및 배포 판정
 
 **현재 산출물은 내부 연구·평가용 설치 검증 번들이다. 공개·상업 배포는 보류한다. 법률 전문가 검토는 받지 않았다.** 설치 성공과 재배포 권한 확보는 별도 조건이다. 이번 작업에서 외부 업로드는 수행하지 않는다.

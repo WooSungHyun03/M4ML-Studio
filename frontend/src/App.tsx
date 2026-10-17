@@ -1069,13 +1069,13 @@ export default function App() {
                 update({
                   bottomH: Math.max(
                     110,
-                    Math.min(window.innerHeight * 0.6, layout.bottomH - d),
+                    Math.min(window.innerHeight * 0.6, Math.max(110, window.innerHeight - 420), layout.bottomH - d),
                   ),
                 })
               }
               onDouble={() => update({ bottom: false })}
             />
-            <div className="dock bottom" style={{ height: layout.bottomH }}>
+            <div className="dock bottom" style={{ height: `min(${layout.bottomH}px, max(110px, calc(100vh - 420px)))` }}>
               <BottomPanel
                 project={project}
                 tab={layout.bottomTab}

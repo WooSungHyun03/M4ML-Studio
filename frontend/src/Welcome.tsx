@@ -513,7 +513,7 @@ export function Welcome({
           <img src="/m4ml-logo.png" alt="Media for Machine Laboratory" />
         </div>
         <div className="pname">M4ML Studio</div>
-        <div className="ptag">멀티뷰 사진에서 원하는 객체만 컬러 3D 모델로</div>
+        <div className="ptag">사진으로 3D 모델 만들기</div>
         <div className="ver">v{health?.version || "—"} · 로컬 GPU 처리</div>
         <div className="col" style={{ marginTop: 20 }}>
           <button

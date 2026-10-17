@@ -1,0 +1,13 @@
+# M4ML Studio v1.0.0 — internal candidate verification
+
+Current: source technical checks passed within stated scope; immutable candidate and clean installation validation in progress. Public release is BLOCKED by G8 rights. This report will be updated after actual candidate tests, not by changing a version string.
+
+Actual source results (2026-10-17): baseline109Python; final112Python PASS42.882s (including cache/original-license endpoint and GPU handover regression);9frontend tests/type/build PASS. ActualQt25checks/27screens: six menus, six workflow stages, environment tabs/provider settings, both themes, short viewport and actual30000/533800 model six-direction orbit/pan/zoom/fit, no JS exceptions. See evidence/v1/ux/native-verified/result.json. Dataset30K output is reused provenance, not retrained.
+
+New raw16 run: actual GPU COLMAP16/16, officialSAM3.1 positive/negative latestrevision4,16-view propagation, manual binary edit/explicit skip, nondefault alpha.27,100checkpoint pause→1000 resume after rejecting changed alpha.4 HTTP422, automatic native TSDF128 colour mesh and real CUDA PNG/export. See evidence/v1/gpu/fresh-pipeline-verified.json. Additional standalone camera-free reset4checks and editor28/console0 pass; first editor fixture omitted input/thumbnails, copied from its read-only source and reran without weakening tests. Initial harness sampled job terminal state before training_partial publication; preserved KeyError report, fixed wait for finalized checkpoint, resumed same run rather than rerunning COLMAP/SAM. Original photo hashes preserved.1000 is integration, not convergence; original30K proof is separate.
+
+Fixed defects: stableworld+Y orbit (recorded position/forward/FOV retained; roll normalized), curated tensor-free advanced view, contained/scrollable tools with bottom-panel cap, short Korean welcome/launcher, stale native entrycache, startup GPU ownership race, duplicate file-upload GLB colour converter. Actual47COLMAP library hashes/50notice texts checked; in-app8component facts+original texts and generated SBOM added.
+
+Pending before technical candidate decision: fresh1.0package, clean nonroot fullsetup, desktop entry and native I/O/security/upgrade/uninstall/reinstall; final artifact hash/file inventory. Full gate decision tracked in solo harness.
+
+Remaining scope limits: NC upstream public/commercial rights; SuiteSparse source/relinking/combined distribution; exact CUDA/Qt/Chromium compliance workflow; trusted single-user loopback/directSIBR privacy boundary; partial mesh geometry quality; otherGPU/OS/Wayland/500photos/overnight/novice studies. No push/tag/upload or public launch is authorized/performed.

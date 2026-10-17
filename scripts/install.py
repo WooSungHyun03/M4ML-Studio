@@ -139,7 +139,7 @@ def main():
         ),
     )
     desktop = (
-        "[Desktop Entry]\nType=Application\nVersion=1.0\nName=M4ML Studio\nComment=멀티뷰 사진으로 객체 컬러 3D 모델 만들기\nExec=python3 "
+        "[Desktop Entry]\nType=Application\nVersion=1.0\nName=M4ML Studio\nComment=사진으로 3D 모델 만들기\nExec=python3 "
         + quoted(app / "scripts/launch.py")
         + "\nIcon="
         + str(app / "frontend/public/m4ml-icon.png")
