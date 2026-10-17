@@ -95,15 +95,27 @@ class ColmapCameraProvider(CameraProvider):
         return base
 
     def requires_gpu(self, request):
-        return bool(self.options.get("use_gpu", True)) and not request.get("cpu_fallback")
+        return bool(
+            request.get("parameters", {}).get(
+                "use_gpu", self.options.get("use_gpu", True)
+            )
+        ) and not request.get("cpu_fallback")
 
     def validate_scene(self, scene):
         return colmap_io.validate_scene(scene)
 
     # ------------------------------------------------------------------ pipeline
     def _plan(self, request):
-        use_gpu = bool(self.options.get("use_gpu", True)) and not request.get("cpu_fallback")
-        if request.get("cpu_fallback") and not self.options.get("allow_cpu_fallback") and not request.get("cpu_fallback_confirmed"):
+        use_gpu = bool(
+            request.get("parameters", {}).get(
+                "use_gpu", self.options.get("use_gpu", True)
+            )
+        ) and not request.get("cpu_fallback")
+        if (
+            request.get("cpu_fallback")
+            and not self.options.get("allow_cpu_fallback")
+            and not request.get("cpu_fallback_confirmed")
+        ):
             raise ValueError("CPU 실행은 사용자 확인 후에만 진행할 수 있습니다.")
         path, probe, origin = self.binary(require_cuda=use_gpu)
         return path, probe, origin, use_gpu
@@ -158,7 +170,28 @@ class ColmapCameraProvider(CameraProvider):
         binary, probe, origin, use_gpu = self._plan(request)
         import os
 
-        threads = int(self.options.get("num_threads") or min(os.cpu_count() or 4, 16))
+        params = request.get("parameters", {})
+        threads = int(
+            params.get(
+                "threads",
+                self.options.get("num_threads") or min(os.cpu_count() or 4, 16),
+            )
+        )
+
+        def options(command, names):
+            result = []
+            for name in names:
+                if name not in params:
+                    continue
+                flag = engines.pick_option(binary, command, name)
+                if not flag:
+                    raise ValueError(
+                        "현재 COLMAP에서 지원하지 않는 설정입니다: " + name
+                    )
+                value = params[name]
+                result += [flag, str(int(value)) if type(value) is bool else str(value)]
+            return result
+
         work.mkdir(parents=True, exist_ok=False)
         sparse = work / "sparse"
         sparse.mkdir()
@@ -177,21 +210,79 @@ class ColmapCameraProvider(CameraProvider):
                 ctx.progress(f"카메라 등록 {found[1]}장째", None, None)
 
         ctx.progress("사진의 특징점을 추출하고 있습니다.")
-        steps.append(self._step(ctx, binary, [
-            "feature_extractor", "--database_path", database, "--image_path", images,
-            *self._feature_args(binary, use_gpu, threads),
-        ], "feature_extraction", use_gpu, lines))
+        steps.append(
+            self._step(
+                ctx,
+                binary,
+                [
+                    "feature_extractor",
+                    "--database_path",
+                    database,
+                    "--image_path",
+                    images,
+                    *self._feature_args(binary, use_gpu, threads),
+                    *options(
+                        "feature_extractor",
+                        [
+                            "FeatureExtraction.max_image_size",
+                            "ImageReader.camera_model",
+                            "ImageReader.single_camera",
+                            "SiftExtraction.max_num_features",
+                        ],
+                    ),
+                ],
+                "feature_extraction",
+                use_gpu,
+                lines,
+            )
+        )
         ctx.progress("사진 쌍의 특징점을 매칭하고 기하 관계를 검증하고 있습니다.")
         command = f"{matching}_matcher"
-        steps.append(self._step(ctx, binary, [
-            command, "--database_path", database, *self._matcher_args(binary, command, use_gpu, threads),
-        ], "feature_matching", use_gpu, lines))
+        steps.append(
+            self._step(
+                ctx,
+                binary,
+                [
+                    command,
+                    "--database_path",
+                    database,
+                    *self._matcher_args(binary, command, use_gpu, threads),
+                    *options(command, ["TwoViewGeometry.max_error"]),
+                ],
+                "feature_matching",
+                use_gpu,
+                lines,
+            )
+        )
         ctx.progress("카메라 위치를 등록하고 재구성 그룹을 찾고 있습니다.")
         mapper_threads = engines.pick_option(binary, "mapper", "Mapper.num_threads")
-        steps.append(self._step(ctx, binary, [
-            "mapper", "--database_path", database, "--image_path", images, "--output_path", sparse,
-            *([mapper_threads, str(threads)] if mapper_threads else []),
-        ], "mapper", False, lines))
+        steps.append(
+            self._step(
+                ctx,
+                binary,
+                [
+                    "mapper",
+                    "--database_path",
+                    database,
+                    "--image_path",
+                    images,
+                    "--output_path",
+                    sparse,
+                    *([mapper_threads, str(threads)] if mapper_threads else []),
+                    *options(
+                        "mapper",
+                        [
+                            "Mapper.min_num_matches",
+                            "Mapper.ba_refine_focal_length",
+                            "Mapper.ba_refine_principal_point",
+                        ],
+                    ),
+                ],
+                "mapper",
+                False,
+                lines,
+            )
+        )
         components = {}
         for model in sorted(sparse.iterdir()):
             if model.is_dir() and (model / "images.bin").is_file():
@@ -202,15 +293,25 @@ class ColmapCameraProvider(CameraProvider):
             report = colmap_io.database_report(database, set(), {})
             report["engine"] = engine
             atomic_json(work / "report.json", report)
-            raise ValueError("카메라가 등록되지 않았습니다. 서로 충분히 겹치는 사진을 추가하세요.")
-        selected = request.get("component") or max(components, key=lambda key: len(components[key]))
+            raise ValueError(
+                "카메라가 등록되지 않았습니다. 서로 충분히 겹치는 사진을 추가하세요."
+            )
+        selected = request.get("component") or max(
+            components, key=lambda key: len(components[key])
+        )
         if selected not in components or len(components[selected]) < 2:
             raise ValueError("선택한 재구성 그룹의 등록 사진이 부족합니다.")
         report = colmap_io.database_report(database, components[selected], components)
-        report.update(selected_component=selected, components={k: sorted(v) for k, v in components.items()}, engine=engine)
+        report.update(
+            selected_component=selected,
+            components={k: sorted(v) for k, v in components.items()},
+            engine=engine,
+        )
         atomic_json(work / "report.json", report)
         ctx.progress("선택한 등록 사진의 렌즈 왜곡을 보정하고 있습니다.")
-        steps.append(self._undistort(ctx, binary, images, sparse / selected, work / "scene"))
+        steps.append(
+            self._undistort(ctx, binary, images, sparse / selected, work / "scene")
+        )
         names = colmap_io.validate_scene(work / "scene")
         report = colmap_io.database_report(database, names, components)
         report.update(

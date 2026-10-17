@@ -168,6 +168,17 @@ class Provider:
     def requires_gpu(self, request: dict) -> bool:
         return True
 
+    def task_settings_schema(self) -> list[dict]:
+        """Own the parameters this provider actually implements; replacements may override."""
+        from studio.task_settings import definitions
+
+        fields = definitions(self.capability, self.key)
+        for f in fields:
+            name = {"threads": "num_threads"}.get(f["id"], f["id"])
+            if name in self.options and self.options[name] is not None:
+                f["default"] = self.options[name]
+        return fields
+
 
 class CameraProvider(Provider):
     capability = "camera"
@@ -253,7 +264,8 @@ class RenderingProvider(Provider):
 
     def server_command(self, model: dict) -> list[str]:
         """argv (run with the GPU runtime interpreter) that loads the model and prints
-        one JSON line ``{"ready": true, "port": ...}`` or ``{"ready": false, "error": ...}``."""
+        one JSON line ``{"ready": true, "port": ...}`` or ``{"ready": false, "error": ...}``.
+        """
         raise NotImplementedError
 
     def connect(self, port: int):

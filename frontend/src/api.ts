@@ -67,6 +67,19 @@ export interface Photo {
   path: string;
 }
 export interface Project {
+  execution_device?: { index: number; uuid?: string };
+  result_artifacts?: {
+    id: string;
+    kind: string;
+    path: string;
+    source_path: string;
+    dataset_link: string;
+  }[];
+  active_gaussian_artifact?: string;
+  task_settings?: {
+    schema_version: number;
+    values: Record<string, Record<string, string | number | boolean>>;
+  };
   input_mode?: "images" | "colmap" | "colmap_masks" | "mesh";
   stage_provenance?: Partial<
     Record<
@@ -77,7 +90,11 @@ export interface Project {
   updated?: string;
   project_path?: string;
   source_folder?: string;
-  folder_import?: { reused: string[]; skipped: string[]; recommendation: { stage: string | null; label: string | null } };
+  folder_import?: {
+    reused: string[];
+    skipped: string[];
+    recommendation: { stage: string | null; label: string | null };
+  };
   archived?: boolean;
   id: string;
   name: string;
@@ -121,7 +138,12 @@ export interface Project {
       version?: string;
       cuda_build?: boolean;
       gpu_requested?: boolean;
-      steps?: { step: string; gpu_requested: boolean; gpu_observed?: boolean; gpu_peak_mb?: number }[];
+      steps?: {
+        step: string;
+        gpu_requested: boolean;
+        gpu_observed?: boolean;
+        gpu_peak_mb?: number;
+      }[];
     };
     images: {
       name: string;
@@ -132,8 +154,18 @@ export interface Project {
       reason: string;
     }[];
   };
-  training?: { iterations: number; gaussians: number; path: string; resumed_from?: number | null };
-  training_partial?: { path: string; checkpoint: number; iterations: number; time: string };
+  training?: {
+    iterations: number;
+    gaussians: number;
+    path: string;
+    resumed_from?: number | null;
+  };
+  training_partial?: {
+    path: string;
+    checkpoint: number;
+    iterations: number;
+    time: string;
+  };
   mesh?: {
     path: string;
     vertices: number;
@@ -210,12 +242,19 @@ export class LiveError extends Error {
     super(message);
   }
 }
-export async function postBlob(url: string, body: unknown, signal?: AbortSignal) {
+export async function postBlob(
+  url: string,
+  body: unknown,
+  signal?: AbortSignal,
+) {
   const response = await fetch("/api" + url, {
     method: "POST",
     body: JSON.stringify(body),
     signal,
-    headers: { "Content-Type": "application/json", "x-studio-token": await auth() },
+    headers: {
+      "Content-Type": "application/json",
+      "x-studio-token": await auth(),
+    },
   });
   if (!response.ok) {
     let detail = "렌더링에 실패했습니다.";

@@ -1,3 +1,75 @@
+# M4ML Studio — 세부 설정 및 기존 3D 결과 검증 (2026-10-17)
+
+이번 작업은 `codex/task-settings-artifact-import`의 별도 기능 작업이다. 기존 Quality Harness Phase0–7 및 이전 릴리스 판정을 소급 변경하지 않는다. Ubuntu24.04/X11, RTX4080 16GB, driver580.173.02, Python3.10/Torch2.5.1+cu118 단일 GPU 환경에서 검사했다. 원본 `train.py`, `render.py`, `arguments/`, `scene/`, `gaussian_renderer/`, `utils/`, native submodules는3221821b 대비 변경하지 않았다.
+
+## 결과
+
+| 항목 | 실제 관찰 및 증거 (`evidence/settings-artifacts/` 기준) |
+|---|---|
+| Python unit/integration | **109 PASS**,25.492s `backend-final.log`; 새 파일 포맷 정리 후 **109 PASS**,24.699s `backend-formatted.log`; 최종 GLB 재질 제한 포함 **109 PASS**,22.988s `backend-release-check.log`. GPU E2E를 대체하는 증거가 아님 |
+| Frontend/type/build | **5 PASS** `frontend-final.log`; `tsc -b && vite build` PASS `build-formatted.log`. Three.js chunk500kB 경고는 유지 |
+| 설정·독립 결과 브라우저 | **12 PASS**, console 예외0 `browser-verified/result.json`: 실제533800 Gaussian/컬러 Mesh, 저장·재로드·개별/그룹 복원, 실제 렌더 크기2배, 원본 SHA 보존 |
+| 결과 조합 브라우저 | **9 PASS**, 예외0 `variants-color-verified/result.json`: Gaussian-only, GLB-only, 같은 크기/내용의 서로 다른 파일 선택 시 renderer PID3426229→3426278, Mesh 전환, 일치하는 학습 결과로 복귀(533800→12400) |
+| 실제 PySide6 창 | **7 PASS**, 예외0 `native-glb-verified/result.json`: 실제 GLB 색상·독립 Gaussian CUDA 표시, UI 설정 저장·페이지 재시작·복원. Qt 종료0. 두 Skia mailbox 진단은 host log에 보존하며 모든 native 로그가 무경고라고 주장하지 않음 |
+| 기존 UI/실시간 렌더 회귀 | **28/20 PASS** `editor-regression/result.json`, `live-regression/result.json`; 기존 메뉴/레이아웃/테마/도움말 및 native frame hash·회전/이동/배율/5표시모드/정리 |
+| 실제 Qt 파일 I/O | **6 PASS** `desktop-io/result.json`: 실제 파일·폴더 선택, drop, 원본 PLY export byte 동일, 원본 사진 불변 |
+| 공식 SAM3.1 설정 | PASS `sam-settings.json`: 동일 모델 PID1798286에서 hole/sprinkle0→4096, 실제 마스크136980→129263pixels/SHA 변화. `sam-propagate-three/verified.json`:32/16, CPU frame offload, 실제3뷰 전파. 멀티뷰 정확도 보장은 아님 |
+| COLMAP 설정 | PASS `colmap-settings.json`: 실제 원본16장 중16등록, max_image_size1600/max_features12000, GPU 특징862MiB/매칭1246MiB 관찰 |
+| 원본 Object-Aware 설정 | PASS `training-settings.json`: lambda_pa0/.3 각각 실제100회→자동 TSDF64 컬러 Mesh, native Gaussian SHA 차이. 단기 통합 검증이며 수렴/최적값 증거가 아님 |
+| Checkpoint resume | PASS `resume-settings.json`:100 checkpoint→1000, 다른 설정422 차단→동일 설정 복원 후 재개, 자동 TSDF128, 기존 checkpoint SHA 보존 |
+| 재추출 | PASS `reextract.json`: num_cluster2/native TSDF128,5757정점/9527삼각형, 이전 Mesh·학습 Gaussian SHA 보존 |
+| 실제 Qt 승인→GPU 학습 | **10 PASS** `desktop-training-final/result.json`: 설정 UI에서100회/lambda_pa.45/TSDF256 저장, 실제 Qt 승인 버튼, 원본 학습·자동 색상 Mesh·Viewer 연결 |
+| 실제 GLB 색상 | PASS `glb-color-audit.json`:378433정점/695561삼각형 GLB→PLY→preview GLB, 최대 linear RGB 오차0.0, 원본 SHA 보존 |
+| 종료 및 보존 | 자체8769/8771/9335 및 Qt/GPU 자식 정상 종료, compute process 없음. 기존 사용자8765/PID708613(설치0.3) 정상 유지; 설치본을 덮어쓰지 않음. `final-verification.json` |
+
+앞선2026-10-16 GPU 증거의 파일·작업 manifest·결과를 실제 대조했다. 이번 복구에서 충분히 입증된 장시간 학습을 다시 실행하지 않았다. 최종 복구의 영향 범위인 native PLY 검사, 설정 migration, GLB 색상, 브라우저/Qt 표시, 전체 CPU/프런트엔드 검사를 재실행했다.
+
+## 재현 명령과 적용 범위
+
+작업 경로는 `/home/m4ml/Desktop/Object-Aware`. 테스트는 격리된 `evidence/settings-artifacts/app-data`만 사용한다. 새 서버 시작/종료의 reconcile이 다른 학습 작업을 취소할 수 있으므로 GPU 작업을 직렬 실행하며, 같은 저장소의 서버를 학습 중 재시작하지 않는다.
+
+```bash
+.runtime/bin/python -m unittest discover -s studio/tests -v
+npm test --prefix frontend
+npm run build --prefix frontend
+STUDIO_DATA="$PWD/evidence/settings-artifacts/app-data" STUDIO_PORT=8769 ./scripts/start.sh
+# /api/health 준비를 확인한 뒤 별도 터미널에서 실행한다.
+export PW_DIR=/home/m4ml/.npm/_npx/31e32ef8478fbf80/node_modules
+export CHROME=/home/m4ml/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell
+node scripts/ui_settings_artifacts_e2e.mjs http://127.0.0.1:8769 "$PWD/evidence/settings-artifacts/standalone" evidence/settings-artifacts/browser-verified
+node scripts/ui_artifact_variants_e2e.mjs http://127.0.0.1:8769 "$PWD/evidence/settings-artifacts" evidence/settings-artifacts/variants-color-verified
+```
+
+실제 GPU 검사 명령은 `.runtime/bin/python evidence/settings-artifacts/{sam-settings-check,sam-propagate-settings-check,colmap-settings-check,train-settings-check,resume-settings-check,reextract-check}.py` 각각을 직렬로 실행한 것이다. 이 로컬 스크립트/입력은 보존된 실사진·마스크·30K 결과에 의존하며 저장소에 가중치/데이터를 커밋하지 않는다. 결과 JSON의 project/job ID가 실제 작업 로그와 연결된다. 재실행 시 새 결과 폴더를 사용해 이전 증거를 보존한다.
+
+Native 검사는 자체8769를 종료한 뒤 다음 격리 환경에서 실행했다.
+
+```bash
+STUDIO_DATA="$PWD/evidence/settings-artifacts/app-data" STUDIO_PORT=8771 XDG_CONFIG_HOME="$PWD/evidence/settings-artifacts/native-glb-config" XDG_CACHE_HOME="$PWD/evidence/settings-artifacts/native-glb-cache" XDG_DATA_HOME="$PWD/evidence/settings-artifacts/native-glb-data" QTWEBENGINE_REMOTE_DEBUGGING=127.0.0.1:9335 .runtime/bin/python -m studio.desktop
+# 실제 native page 준비 후:
+node scripts/settings_artifacts_desktop_qa.mjs http://127.0.0.1:9335 d5f8a280-4df1-4fb7-bcf1-845a51f1de59 evidence/settings-artifacts/native-glb-verified
+```
+
+`desktop_training_host.py`는 테스트 QApplication 안에서 실제100회 승인 대화상자의 버튼만 누른다. 전역 키보드/마우스 주입이나 가짜 확인창을 사용하지 않는다. Native 파일 선택/drop 검사는 `scripts/desktop_io_qa.py`, 기존 UI 회귀는 `scripts/ui_editor_e2e.mjs`, 실시간 렌더 회귀는 `scripts/ui_live_render_e2e.mjs`로 실행했다.
+
+## 발견·수정 및 보존한 실패
+
+- 실제533800 native2DGS의 scale은 log값이며 최소−67.400734였다. 절댓값30 검사는 정상 출력을 거부했다. 원본 `torch.exp`를 확인하고 입력 한계를[-80,30]으로 구분했다. NaN/Inf/손상/비정상 위치/양의 큰 scale/영회전/비호환3DGS 거부 회귀를 유지했다. `gaussian-scale-recovery.json`, `scale-recovery-tests.log`, 실패 `browser-final` 보존.
+- 실제 GLB COLOR_0은 있었으나 Trimesh 재질 visual이 PLY export에서 정점 색상을 무시했다. 명시적 ColorVisuals로 교체하여 해결. `variants` 실패→`variants-color-verified` PASS. 텍스처 및 별도 재질 색상·투명도 GLB는 명시적으로 지원 밖으로 안내하며 색상을 잃고 성공 처리하지 않는다. 첫 단위 테스트의 preview 파일명 오타와 서버 준비 전 접속 실패 로그도 보존.
+- review/view를 먼저 저장하면 legacy 학습 반복 횟수가 기본값으로 바뀌었다. training namespace 존재 여부로 migration 경계를 고쳐12000 유지 및 명시적 reset30000을 검사했다.
+- 저장 직후 오래된 schema 응답이 dirty 판정을 다시 켜던 UI race는 별도 saved baseline으로 해결했다. `native-final` 실패와 `native-verified`/`native-glb-verified` PASS 보존.
+- COLMAP800/4096+보정 사진 trial은 초기 쌍 실패했다. 원본1600/12000으로16/16 검증했으며 앞선 실패를 성공으로 세지 않았다. 반경1의 끝 프레임은2개가 정상이라 테스트를 반경2의 실제3개 입력에 맞췄다.
+
+## 완료 범위와 제한
+
+75개 지원 필드(카메라11/선택5/검토8/학습28/추출6/표시17), Provider별 schema·검증·프로젝트 저장·reset·불변 실행 snapshot·resume 호환성·실제 엔진 연결 및 지원 결과 import/view를 구현했다. 각 학습률/밀도/제거 옵션의 최적값이나 개별 수렴 성능을 모두 실험했다는 뜻은 아니다. [설정 구조](SETTINGS_ARCHITECTURE.md), [변수 참조](PARAMETER_REFERENCE.md), [입력 지원 범위](ARTIFACT_IMPORT.md)를 따른다.
+
+독립 Gaussian은 학습 완료나 가짜 camera를 생성하지 않는다. Native Object-Aware2-scale PLY만 지원하고 일반3DGS/point cloud/texture/재질 tint GLB는 명시적으로 제한한다. 외부 checkpoint는 완전한 실행 identity 없이 resume 가능으로 표시하지 않는다. 실제30K 결과의 부분 표면/구멍, direct SIBR local-user 인증, 다른 GPU/OS/Wayland/500장/overnight/신규 사용자 연구는 기존 미해결·미검증 범위를 유지한다. 공개·상업 재배포 G12/G13은 HOLD다. 이번 소스 기능 완료는 설치0.3 또는 이전 frozen0.5 배포물을 자동 업그레이드했다는 뜻이 아니다.
+
+---
+
+아래는 이전0.3 및 Quality Harness 시험 기록을 원문 보존한 것이다.
+
 # M4ML Studio 0.3.0 시험 보고서
 
 2026-10-16 복구 세션. 실제 장비: Ubuntu24.04 x86_64 / RTX4080 16GB / NVIDIA580.173.02. GPU Python은3.10/Torch2.5.1+cu118/NumPy1.24.4 하나이며 COLMAP4.2.1은 별도 ELF/CUDA12.6 runtime이다. 원본 train.py/render.py/arguments/scene/gaussian_renderer/utils/native source diff는 비어 있다.

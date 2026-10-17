@@ -30,12 +30,38 @@ class ObjectAwareTSDFMeshProvider(MeshProvider):
 
     def extract(self, ctx, scene, model, iterations, output, request):
         mesh_res = int(request.get("mesh_res", self.options.get("mesh_res", 1024)))
-        ctx.python([
-            "render.py", "-s", str(scene), "-m", str(model),
-            "--skip_train", "--skip_test", "--mesh_res", str(mesh_res),
-            "--iteration", str(iterations),
-        ])
-        ply = Path(model) / "train" / f"ours_{iterations}" / "fuse_post.ply"
+        # Original render.py writes train/ours_* under -m. Isolate those writes on every extraction.
+        work = Path(output).parent / "extraction-model"
+        work.mkdir(parents=True, exist_ok=False)
+        from studio.result_artifacts import safe_model_config
+        (work/"cfg_args").write_text(safe_model_config(model,source=scene,target=work))
+        (work / "point_cloud").symlink_to(
+            (Path(model) / "point_cloud").resolve(), target_is_directory=True
+        )
+        argv = [
+            "render.py",
+            "-s",
+            str(scene),
+            "-m",
+            str(work),
+            "--skip_train",
+            "--skip_test",
+            "--mesh_res",
+            str(mesh_res),
+            "--iteration",
+            str(iterations),
+        ]
+        supported = {f["native"] for f in self.task_settings_schema()} - {"mesh_res"}
+        for key, value in request.get("parameters", {}).items():
+            if key not in supported:
+                continue
+            if type(value) is bool:
+                if value:
+                    argv.append("--" + key)
+            else:
+                argv += ["--" + key, str(value)]
+        ctx.python(argv)
+        ply = work / "train" / f"ours_{iterations}" / "fuse_post.ply"
         if not ply.is_file():
             raise ValueError("3D 모델 파일이 생성되지 않았습니다. 로그를 확인하세요.")
         from studio.engines import provider

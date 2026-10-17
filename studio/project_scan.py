@@ -26,8 +26,26 @@ from pathlib import Path
 import numpy as np
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
-MASK_DIR_NAMES = {"mask", "masks", "object_mask", "object_masks", "alpha", "segmentation"}
-SKIP_DIRS = {".git", "__pycache__", "node_modules", ".cache", "renders", "gt", "vis", "depth", "normal", "test"}
+MASK_DIR_NAMES = {
+    "mask",
+    "masks",
+    "object_mask",
+    "object_masks",
+    "alpha",
+    "segmentation",
+}
+SKIP_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".cache",
+    "renders",
+    "gt",
+    "vis",
+    "depth",
+    "normal",
+    "test",
+}
 MAX_DEPTH = 7
 MAX_ENTRIES = 60000
 
@@ -194,6 +212,7 @@ def analyse_masks(mask_dirs: list, root: Path, names: list, photo_dir: Path | No
 
 # --------------------------------------------------------------------------- training outputs
 def _cfg_source(cfg: Path):
+    if cfg.stat().st_size>16384:raise ValueError("학습 설정 파일이 너무 큽니다.")
     m = re.search(r"source_path='([^']*)'", cfg.read_text(errors="replace"))
     return m[1] if m else None
 
@@ -220,22 +239,49 @@ def _ply_header(path: Path):
 def analyse_training(model: Path, root: Path, poses: dict | None):
     item = {"path": model.relative_to(root).as_posix(), "valid": False}
     try:
-        iters = sorted(int(p.name.split("_")[1]) for p in (model / "point_cloud").glob("iteration_*")
-                       if (p / "point_cloud.ply").is_file() and p.name.split("_")[1].isdigit())
-        ckpts = sorted(int(m[1]) for p in model.glob("chkpnt*.pth") if (m := re.fullmatch(r"chkpnt(\d+)\.pth", p.name)))
-        item.update(iterations=iters, checkpoints=ckpts, source_path=_cfg_source(model / "cfg_args"))
+        iters = sorted(
+            int(p.name.split("_")[1])
+            for p in (model / "point_cloud").glob("iteration_*")
+            if (p / "point_cloud.ply").is_file() and p.name.split("_")[1].isdigit()
+        )
+        ckpts = sorted(
+            int(m[1])
+            for p in model.glob("chkpnt*.pth")
+            if (m := re.fullmatch(r"chkpnt(\d+)\.pth", p.name))
+        )
+        item.update(
+            iterations=iters,
+            checkpoints=ckpts,
+            source_path=_cfg_source(model / "cfg_args"),
+        )
         if iters:
-            header = _ply_header(model / "point_cloud" / f"iteration_{iters[-1]}" / "point_cloud.ply")
-            item["gaussians"] = header["elements"].get("vertex", 0)
-            item["has_objectmark"] = any("objectmark" in p for p in header["vertex_props"])
-            if not item["gaussians"]:
-                raise ValueError("학습 결과에 가우시안이 없습니다.")
+            from studio.result_artifacts import inspect_result
+
+            result = inspect_result(
+                model / "point_cloud" / f"iteration_{iters[-1]}" / "point_cloud.ply",
+                root,
+            )
+            if not result["valid"] or result["kind"] != "gaussian":
+                raise ValueError(
+                    result.get("error", "Object-Aware Gaussian 형식이 아닙니다.")
+                )
+            item["gaussians"] = result["vertices"]
+            item["has_objectmark"] = True
         for c in ckpts:
             with (model / f"chkpnt{c}.pth").open("rb") as f:
                 if f.read(2) != b"PK":
                     raise ValueError(f"chkpnt{c}.pth 파일이 손상되었습니다.")
+        if ckpts and not iters:
+            item["resume_compatible"] = False
+            item["note"] = (
+                "저장 지점의 전체 실행 설정과 데이터 해시 검증 기록이 없어 안전한 재개를 확인할 수 없습니다. 새로 학습하세요."
+            )
         # does this output belong to THIS dataset? names + camera centres
-        cams = json.loads((model / "cameras.json").read_text()) if (model / "cameras.json").is_file() else None
+        cams = (
+            json.loads((model / "cameras.json").read_text())
+            if (model / "cameras.json").is_file()
+            else None
+        )
         item["dataset_match"] = "unknown"
         if cams and poses:
             from studio.colmap import loader
@@ -245,9 +291,20 @@ def analyse_training(model: Path, root: Path, poses: dict | None):
             matched = [c for c in cams if c["img_name"] in by_stem]
             item["cameras_matched"] = f"{len(matched)}/{len(cams)}"
             if len(matched) == len(cams) and matched:
-                centers = np.array([-(reader.qvec2rotmat(by_stem[c["img_name"]].qvec).T @ by_stem[c["img_name"]].tvec) for c in matched])
+                centers = np.array(
+                    [
+                        -(
+                            reader.qvec2rotmat(by_stem[c["img_name"]].qvec).T
+                            @ by_stem[c["img_name"]].tvec
+                        )
+                        for c in matched
+                    ]
+                )
                 trained = np.array([c["position"] for c in matched])
-                scale = max(float(np.linalg.norm(centers - centers.mean(0), axis=1).mean()), 1e-9)
+                scale = max(
+                    float(np.linalg.norm(centers - centers.mean(0), axis=1).mean()),
+                    1e-9,
+                )
                 err = float(np.abs(centers - trained).max() / scale)
                 item["camera_center_error"] = err
                 item["dataset_match"] = "yes" if err < 1e-3 else "no"
@@ -298,10 +355,15 @@ def scan_folder(folder) -> dict:
     if not root.is_dir():
         raise ValueError("폴더를 찾을 수 없습니다.")
     tree = _walk(root)
-    image_dirs = {d: sorted(f for f in files if Path(f).suffix.lower() in IMAGE_EXT)
-                  for d, files in tree.items() if not _is_mask_dir(d, root) and not _in_training_output(d, root)}
+    image_dirs = {
+        d: sorted(f for f in files if Path(f).suffix.lower() in IMAGE_EXT)
+        for d, files in tree.items()
+        if not _is_mask_dir(d, root) and not _in_training_output(d, root)
+    }
     image_dirs = {d: f for d, f in image_dirs.items() if len(f) >= 2}
-    mask_dirs = [(d, files) for d, files in tree.items() if _is_mask_dir(d, root) and files]
+    mask_dirs = [
+        (d, files) for d, files in tree.items() if _is_mask_dir(d, root) and files
+    ]
 
     # M4ML Studio project metadata
     manifest = None
@@ -309,20 +371,38 @@ def scan_folder(folder) -> dict:
         try:
             m = json.loads((root / "manifest.json").read_text())
             if "stages" in m and "schema_version" in m:
-                manifest = {"id": m.get("id"), "name": m.get("name"), "stages": m.get("stages")}
+                manifest = {
+                    "id": m.get("id"),
+                    "name": m.get("name"),
+                    "stages": m.get("stages"),
+                }
         except ValueError:
             pass
 
-    sparse = [analyse_sparse(d, image_dirs, root) for d, files in tree.items()
-              if ({"cameras.bin", "images.bin", "points3D.bin"} <= set(files) or {"cameras.txt", "images.txt", "points3D.txt"} <= set(files))]
-    valid_sparse = sorted((s for s in sparse if s["valid"]), key=lambda s: (s["undistorted"], s["registered"]), reverse=True)
+    sparse = [
+        analyse_sparse(d, image_dirs, root)
+        for d, files in tree.items()
+        if (
+            {"cameras.bin", "images.bin", "points3D.bin"} <= set(files)
+            or {"cameras.txt", "images.txt", "points3D.txt"} <= set(files)
+        )
+    ]
+    valid_sparse = sorted(
+        (s for s in sparse if s["valid"]),
+        key=lambda s: (s["undistorted"], s["registered"]),
+        reverse=True,
+    )
     selected = valid_sparse[0] if valid_sparse else None
 
     photos_dir = None
     if selected and selected.get("images_dir") is not None:
         photos_dir = root / selected["images_dir"]
     elif image_dirs:
-        preferred = [d for d in image_dirs if d.name.lower() in {"images", "input", "photos", "imgs"}]
+        preferred = [
+            d
+            for d in image_dirs
+            if d.name.lower() in {"images", "input", "photos", "imgs"}
+        ]
         photos_dir = max(preferred or image_dirs, key=lambda d: len(image_dirs[d]))
     photos = image_dirs.get(photos_dir, []) if photos_dir else []
     images = None
@@ -333,30 +413,52 @@ def scan_folder(folder) -> dict:
                 sizes[f] = list(_image_size(photos_dir / f))
             except Exception:
                 pass
-        images = {"dir": photos_dir.relative_to(root).as_posix() or ".", "count": len(photos), "sample_sizes": sizes,
-                  "bytes": sum((photos_dir / f).stat().st_size for f in photos)}
+        images = {
+            "dir": photos_dir.relative_to(root).as_posix() or ".",
+            "count": len(photos),
+            "sample_sizes": sizes,
+            "bytes": sum((photos_dir / f).stat().st_size for f in photos),
+        }
 
     names = selected["_names"] if selected else []
     masks = analyse_masks(mask_dirs, root, names, photos_dir) if selected else None
 
-    trainings = [analyse_training(d, root, selected["_poses"] if selected else None)
-                 for d, files in tree.items() if "cfg_args" in files and ((d / "point_cloud").is_dir() or any(f.startswith("chkpnt") for f in files))]
-    meshes = []
-    for d, files in tree.items():
-        for f in files:
-            if f.lower().endswith(".glb") or (f.lower().endswith(".ply") and f not in ("point_cloud.ply", "input.ply", "points3D.ply")):
-                meshes.append(analyse_mesh(d / f, root))
-    meshes = sorted((m for m in meshes if m["valid"]), key=lambda m: (m.get("colors") is True, "fuse_post" in m["path"], m["bytes"]), reverse=True) \
-        + [m for m in meshes if not m["valid"]]
+    trainings = [
+        analyse_training(d, root, selected["_poses"] if selected else None)
+        for d, files in tree.items()
+        if "cfg_args" in files
+        and ((d / "point_cloud").is_dir() or any(f.startswith("chkpnt") for f in files))
+    ]
+    from studio.result_artifacts import inspect_result, MAX_ARTIFACTS
+
+    candidates = [
+        d / f
+        for d, files in tree.items()
+        for f in sorted(files)
+        if Path(f).suffix.lower() in {".ply", ".glb", ".obj"}
+    ]
+    artifacts = [inspect_result(path, root) for path in candidates[:MAX_ARTIFACTS]]
+    artifacts.sort(key=lambda m: (m["valid"], m.get("modified", 0)), reverse=True)
+    meshes = [
+        {**m, "kind": m.get("format", "ply")} for m in artifacts if m["kind"] == "mesh"
+    ]
 
     for s in sparse:
         s.pop("_poses", None), s.pop("_names", None)
 
     # ------------------------------------------------------------------ recommendation
     problems, reasons = [], []
-    usable_training = [t for t in trainings if t["valid"] and t.get("dataset_match") == "yes"]
+    usable_training = [
+        t for t in trainings if t["valid"] and t.get("dataset_match") == "yes"
+    ]
     finished = [t for t in usable_training if t.get("iterations")]
-    resumable = [t for t in usable_training if t.get("checkpoints") and not t.get("iterations")]
+    resumable = [
+        t
+        for t in usable_training
+        if t.get("checkpoints")
+        and not t.get("iterations")
+        and t.get("resume_compatible")
+    ]
     # A mesh inside a training output belongs to that output's dataset: usable only with it.
     rejected = [t["path"] for t in trainings if t not in usable_training]
     for m in meshes:
@@ -366,35 +468,59 @@ def scan_folder(folder) -> dict:
         else:
             m["usable"] = m["valid"]
     good_mesh = next((m for m in meshes if m["usable"]), None)
-    trained_mesh = next((m for m in meshes if m["usable"] and finished and m["path"].startswith(finished[0]["path"] + "/")), None)
+    trained_mesh = next(
+        (
+            m
+            for m in meshes
+            if m["usable"]
+            and finished
+            and m["path"].startswith(finished[0]["path"] + "/")
+        ),
+        None,
+    )
     for t in trainings:
         if t["valid"] and t.get("dataset_match") != "yes":
-            problems.append(f"학습 결과 {t['path']}는 이 폴더의 카메라 정합 결과와 일치하지 않아 사용하지 않습니다.")
+            problems.append(
+                f"학습 결과 {t['path']}는 이 폴더의 카메라 정합 결과와 일치하지 않아 사용하지 않습니다."
+            )
     for s in sparse:
         if not s["valid"]:
-            problems.append(f"카메라 정합 결과 {s['path']}를 사용할 수 없습니다: {s.get('error')}")
+            problems.append(
+                f"카메라 정합 결과 {s['path']}를 사용할 수 없습니다: {s.get('error')}"
+            )
     if masks and masks["problems"]:
         problems.extend(masks["problems"][:3])
 
-    if not images and not selected and not good_mesh:
+    good_result = next((a for a in artifacts if a["valid"]), None)
+    if not images and not selected and not good_mesh and not good_result:
         stage = None
-        problems.insert(0, "사진, 카메라 정합 결과, 3D 모델을 찾지 못했습니다. 프로젝트 데이터가 있는 폴더를 선택하세요.")
+        problems.insert(
+            0,
+            "사진, 카메라 정합 결과, 3D 모델을 찾지 못했습니다. 프로젝트 데이터가 있는 폴더를 선택하세요.",
+        )
     elif selected and finished:
         stage = "view" if trained_mesh else "mesh"
-        reasons.append("이 데이터셋으로 학습된 결과가 있습니다." + ("" if trained_mesh else " 3D 모델을 학습 결과에서 새로 만듭니다."))
+        reasons.append(
+            "이 데이터셋으로 학습된 결과가 있습니다."
+            + ("" if trained_mesh else " 3D 모델을 학습 결과에서 새로 만듭니다.")
+        )
     elif selected and resumable:
         stage = "train_resume"
-        reasons.append(f"학습 저장 지점 {resumable[0]['checkpoints'][-1]:,}회가 있어 이어서 학습할 수 있습니다.")
+        reasons.append(
+            f"학습 저장 지점 {resumable[0]['checkpoints'][-1]:,}회가 있어 이어서 학습할 수 있습니다."
+        )
     elif selected and masks and masks["complete"]:
         stage = "train"
         reasons.append("등록된 모든 사진에 유효한 마스크가 있습니다.")
     elif selected and masks and masks["valid"]:
         stage = "review"
-        reasons.append(f"마스크 {masks['matched']}/{masks['expected']}장이 있습니다. 나머지는 객체 선택으로 만듭니다.")
+        reasons.append(
+            f"마스크 {masks['matched']}/{masks['expected']}장이 있습니다. 나머지는 객체 선택으로 만듭니다."
+        )
     elif selected:
         stage = "sam"
         reasons.append(f"카메라 {selected['registered']}장이 등록되어 있습니다.")
-    elif good_mesh and not images:
+    elif (good_mesh or good_result) and not images:
         stage = "view"
         reasons.append("완성된 3D 모델 파일이 있습니다.")
     else:
@@ -403,18 +529,46 @@ def scan_folder(folder) -> dict:
     if good_mesh and stage not in ("view",) and not (selected and finished):
         reasons.append(f"3D 모델 파일({good_mesh['path']})도 함께 열 수 있습니다.")
 
+    if good_result:
+        reasons.append(
+            "기존 3D 결과는 데이터셋 연결을 가정하지 않고 독립적으로 열 수 있습니다."
+        )
     return {
         "path": str(root),
         "name": root.name,
         "manifest": manifest,
         "images": images,
-        "image_dirs": [{"dir": d.relative_to(root).as_posix() or ".", "count": len(f)} for d, f in sorted(image_dirs.items(), key=lambda t: -len(t[1]))][:10],
+        "image_dirs": [
+            {"dir": d.relative_to(root).as_posix() or ".", "count": len(f)}
+            for d, f in sorted(image_dirs.items(), key=lambda t: -len(t[1]))
+        ][:10],
         "sparse": sparse,
         "selected_sparse": selected["path"] if selected else None,
-        "camera": {k: selected[k] for k in ("registered", "cameras", "camera_models", "undistorted", "points", "images_found") if k in selected} if selected else None,
+        "camera": (
+            {
+                k: selected[k]
+                for k in (
+                    "registered",
+                    "cameras",
+                    "camera_models",
+                    "undistorted",
+                    "points",
+                    "images_found",
+                )
+                if k in selected
+            }
+            if selected
+            else None
+        ),
         "masks": masks,
         "training": trainings,
-        "meshes": meshes[:10],
-        "recommendation": {"stage": stage, "label": STAGE_LABEL.get(stage), "reasons": reasons},
+        "meshes": meshes[:64],
+        "artifacts": artifacts,
+        "artifact_scan_limited": len(candidates) > MAX_ARTIFACTS,
+        "recommendation": {
+            "stage": stage,
+            "label": STAGE_LABEL.get(stage),
+            "reasons": reasons,
+        },
         "problems": problems,
     }

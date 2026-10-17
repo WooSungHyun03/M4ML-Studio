@@ -56,16 +56,43 @@ class ObjectAwareTrainingProvider(TrainingProvider):
 
     def train(self, ctx, scene, model, request):
         iterations = int(request["iterations"])
-        every = int(self.options.get("checkpoint_every", 2500))
+        every = int(
+            request.get("parameters", {}).get(
+                "checkpoint_every", self.options.get("checkpoint_every", 2500)
+            )
+        )
         keep = int(self.options.get("keep_checkpoints", 2))
         marks = sorted({*range(every, iterations, every), iterations})
         argv = [
-            "train.py", "-s", str(scene), "-m", str(model),
-            "--iterations", str(iterations),
-            "--checkpoint_iterations", *map(str, marks),
-            "--port", "0",
-            "--resolution", str(request.get("resolution", -1)),
+            "train.py",
+            "-s",
+            str(scene),
+            "-m",
+            str(model),
+            "--iterations",
+            str(iterations),
+            "--checkpoint_iterations",
+            *map(str, marks),
+            "--port",
+            "0",
+            "--resolution",
+            str(request.get("resolution", -1)),
         ]
+        from studio.task_settings import definitions
+
+        supported = {f["native"] for f in self.task_settings_schema()} - {
+            "iterations",
+            "resolution",
+            "checkpoint_every",
+        }
+        for key, value in request.get("parameters", {}).items():
+            if key not in supported:
+                continue
+            if type(value) is bool:
+                if value:
+                    argv.append("--" + key)
+            else:
+                argv += ["--" + key, str(value)]
         resumed = None
         if request.get("resume_iteration"):
             resumed = int(request["resume_iteration"])
@@ -75,20 +102,25 @@ class ObjectAwareTrainingProvider(TrainingProvider):
             if resumed >= iterations:
                 raise ValueError("이미 목표 반복 횟수까지 학습했습니다.")
             argv += ["--start_checkpoint", str(checkpoint)]
+        ctx.progress("학습 실행 설정: " + str(request.get("parameters", {})))
         # Device sanity check in the SAME env as training; fails loudly if CUDA is not used.
-        ctx.python([
-            "-c",
-            "import torch,sys; assert torch.cuda.is_available(), 'CUDA unavailable';"
-            "print('device:', torch.cuda.get_device_name(0), '| torch', torch.__version__, '| cuda', torch.version.cuda)",
-        ], timeout=300)
+        ctx.python(
+            [
+                "-c",
+                "import torch,sys; assert torch.cuda.is_available(), 'CUDA unavailable';"
+                "print('device:', torch.cuda.get_device_name(0), '| torch', torch.__version__, '| cuda', torch.version.cuda)",
+            ],
+            timeout=300,
+        )
 
+        existing_marks = set(list_checkpoints(model))
         stop = threading.Event()
 
         def prune():
             while not stop.wait(5):
                 found = list_checkpoints(model)
                 for old in found[:-keep]:
-                    if old != iterations:
+                    if old != iterations and old not in existing_marks:
                         (Path(model) / f"chkpnt{old}.pth").unlink(missing_ok=True)
 
         pruner = threading.Thread(target=prune, daemon=True)
@@ -98,4 +130,8 @@ class ObjectAwareTrainingProvider(TrainingProvider):
         finally:
             stop.set()
             pruner.join(timeout=10)
-        return {"iterations": iterations, "resumed_from": resumed, "checkpoints": list_checkpoints(model)}
+        return {
+            "iterations": iterations,
+            "resumed_from": resumed,
+            "checkpoints": list_checkpoints(model),
+        }

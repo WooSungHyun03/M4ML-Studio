@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from "react";
+import { setting, type SettingsBundle, type Values } from "./TaskSettings";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Axis3d, BarChart3, Camera, Grid3x3, Hand, Orbit, RefreshCw, RotateCcw, Scan, SlidersHorizontal, Sun } from "lucide-react";
+import {
+  Axis3d,
+  BarChart3,
+  Camera,
+  Grid3x3,
+  Hand,
+  Orbit,
+  RefreshCw,
+  RotateCcw,
+  Scan,
+  SlidersHorizontal,
+  Sun,
+} from "lucide-react";
 
 /** Display modes that really exist in this viewer.
  *  color   — the stored vertex colours, unlit (exactly the colours in the exported file)
@@ -56,18 +69,25 @@ export interface MeshStats {
  *  colours the user sees are exactly the colours stored in the exported file. */
 export default function MeshViewer({
   url,
+  displaySettings,
+  onDisplayChange,
   legacyColors = false,
   onStats,
   fileBase = "model",
 }: {
   url: string;
+  displaySettings?: SettingsBundle;
+  onDisplayChange?: (v: Values) => void;
   legacyColors?: boolean;
   onStats?: (s: MeshStats) => void;
   fileBase?: string;
 }) {
+  const display = useRef(displaySettings);
+  display.current = displaySettings;
   const host = useRef<HTMLDivElement>(null),
     gizmo = useRef<HTMLDivElement>(null);
   const api = useRef({
+    configure: () => {},
     fit: () => {},
     view: (_v: ViewName) => {},
     mode: (_m: ViewMode) => {},
@@ -97,7 +117,16 @@ export default function MeshViewer({
     [loaded, setLoaded] = useState(false),
     [hasColor, setHasColor] = useState(false);
   // Settings survive a reload of the same mesh: the effect reads them through this ref.
-  const settings = useRef({ mode, ortho, bg, grid, axes, light, azimuth, pointSize });
+  const settings = useRef({
+    mode,
+    ortho,
+    bg,
+    grid,
+    axes,
+    light,
+    azimuth,
+    pointSize,
+  });
   settings.current = { mode, ortho, bg, grid, axes, light, azimuth, pointSize };
 
   useEffect(() => {
@@ -116,7 +145,11 @@ export default function MeshViewer({
     setLoaded(false);
     setError("");
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true,
+      });
     } catch {
       setError("3D 화면을 열 수 없습니다. 그래픽 하드웨어 가속을 확인하세요.");
       return;
@@ -172,7 +205,9 @@ export default function MeshViewer({
       const distance = span * 1.15;
       for (const cam of [persp, orthoCam]) {
         cam.up.copy(up);
-        cam.position.copy(center).addScaledVector(dir.clone().normalize(), distance);
+        cam.position
+          .copy(center)
+          .addScaledVector(dir.clone().normalize(), distance);
         cam.lookAt(center);
       }
       orthoCam.zoom = 1;
@@ -195,7 +230,14 @@ export default function MeshViewer({
     function view(name: ViewName) {
       const d = new THREE.Vector3(...DIRS[name]);
       // Looking straight down/up the Y axis needs a different "up" so the camera has a defined roll.
-      look(d, name === "top" ? new THREE.Vector3(0, 0, -1) : name === "bottom" ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0));
+      look(
+        d,
+        name === "top"
+          ? new THREE.Vector3(0, 0, -1)
+          : name === "bottom"
+            ? new THREE.Vector3(0, 0, 1)
+            : new THREE.Vector3(0, 1, 0),
+      );
     }
     function disposeMaterial(m: THREE.Material | THREE.Material[]) {
       (Array.isArray(m) ? m : [m]).forEach((x) => x.dispose());
@@ -210,9 +252,19 @@ export default function MeshViewer({
         const colors = !!child.geometry.getAttribute("color");
         child.material =
           value === "color" && colors
-            ? new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide })
+            ? new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                vertexColors: true,
+                side: THREE.DoubleSide,
+              })
             : value === "vertex" && colors
-              ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0, roughness: 0.75, side: THREE.DoubleSide })
+              ? new THREE.MeshStandardMaterial({
+                  color: 0xffffff,
+                  vertexColors: true,
+                  metalness: 0,
+                  roughness: 0.75,
+                  side: THREE.DoubleSide,
+                })
               : value === "normals"
                 ? new THREE.MeshNormalMaterial({ side: THREE.DoubleSide })
                 : new THREE.MeshStandardMaterial({
@@ -249,12 +301,26 @@ export default function MeshViewer({
       if (colored && colors.length) geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
       points = new THREE.Points(
         geometry,
-        new THREE.PointsMaterial({ size: settings.current.pointSize, sizeAttenuation: false, vertexColors: colored, color: colored ? 0xffffff : 0xc9c8ce }),
+        new THREE.PointsMaterial({
+          size: settings.current.pointSize,
+          sizeAttenuation: false,
+          vertexColors: colored,
+          color: colored ? 0xffffff : 0xc9c8ce,
+        }),
       );
       points.visible = false;
       scene.add(points);
     }
     function screenshot() {
+      const originalDpr = renderer.getPixelRatio();
+      renderer.setPixelRatio(
+        Math.min(
+          Math.min(devicePixelRatio, 2) *
+            setting(display.current, "view", "screenshot_scale", 1),
+          4096 / Math.max(node.clientWidth, node.clientHeight, 1),
+        ),
+      );
+      resize();
       renderer.render(scene, camera);
       renderer.domElement.toBlob((blob) => {
         if (!blob) return;
@@ -267,8 +333,53 @@ export default function MeshViewer({
         a.remove();
         setTimeout(() => URL.revokeObjectURL(href), 5000);
       }, "image/png");
+      renderer.setPixelRatio(originalDpr);
+      resize();
+    }
+    function configure() {
+      const d = display.current;
+      if (!d?.view) return;
+      const get = <T extends string | number | boolean>(
+        id: string,
+        fallback: T,
+      ) => setting(d, "view", id, fallback);
+      renderer.setPixelRatio(
+        Math.min(
+          Math.min(devicePixelRatio, 2) * get("render_scale", 1),
+          4096 / Math.max(node.clientWidth, node.clientHeight, 1),
+        ),
+      );
+      controls.rotateSpeed = get("rotate_speed", 1);
+      controls.zoomSpeed = get("zoom_speed", 1);
+      controls.panSpeed = get("pan_speed", 1);
+      persp.fov = get("fov", 35);
+      persp.near = get("near", 0.001);
+      persp.far = get("far", 100000);
+      gridGroup.visible = get("grid", true);
+      axesGroup.visible = get("axes", false);
+      scene.background = new THREE.Color(get("background", "#1c1c20"));
+      lighting(get("light", 1), get("light_azimuth", -35));
+      if (points)
+        (points.material as THREE.PointsMaterial).size = get("point_size", 2);
+      const mode = get("mesh_mode", "color") as ViewMode;
+      setMaterials(mode);
+      setMode(mode);
+      setGrid(gridGroup.visible);
+      setAxes(axesGroup.visible);
+      setLight(get("light", 1));
+      setAzimuth(get("light_azimuth", -35));
+      setPointSize(get("point_size", 2));
+      const ortho = get("orthographic", false);
+      if ((camera === orthoCam) !== ortho) api.current.projection(ortho);
+      setOrtho(ortho);
+      resize();
+      node.dataset.renderWidth = String(renderer.domElement.width);
+      node.dataset.renderHeight = String(renderer.domElement.height);
+      node.dataset.renderScale = String(get("render_scale", 1));
+      node.dataset.background = get("background", "#1c1c20");
     }
     api.current = {
+      configure,
       fit,
       view,
       mode: setMaterials,
@@ -334,7 +445,8 @@ export default function MeshViewer({
     }
 
     new GLTFLoader().load(
-      url + (reload ? (url.includes("?") ? "&" : "?") + "reload=" + reload : ""),
+      url +
+        (reload ? (url.includes("?") ? "&" : "?") + "reload=" + reload : ""),
       (gltf) => {
         if (!alive) return;
         object = gltf.scene;
@@ -345,7 +457,8 @@ export default function MeshViewer({
           if (child instanceof THREE.Mesh) {
             const g = child.geometry as THREE.BufferGeometry;
             vertices += g.getAttribute("position").count;
-            triangles += (g.index ? g.index.count : g.getAttribute("position").count) / 3;
+            triangles +=
+              (g.index ? g.index.count : g.getAttribute("position").count) / 3;
             if (!g.getAttribute("normal")) g.computeVertexNormals();
             const attr = g.getAttribute("color");
             if (attr) {
@@ -366,7 +479,12 @@ export default function MeshViewer({
         const sizeV = box.getSize(new THREE.Vector3());
         const size = sizeV.length();
         const c = box.getCenter(new THREE.Vector3());
-        const s: MeshStats = { colored: colored > 0, vertices, triangles: Math.round(triangles), size: [sizeV.x, sizeV.y, sizeV.z] };
+        const s: MeshStats = {
+          colored: colored > 0,
+          vertices,
+          triangles: Math.round(triangles),
+          size: [sizeV.x, sizeV.y, sizeV.z],
+        };
         setHasColor(colored > 0);
         setStats(s);
         onStats?.(s);
@@ -382,19 +500,29 @@ export default function MeshViewer({
         buildPoints();
         const st = settings.current;
         // A mesh without colours cannot show colour modes: fall back to shaded and say so in the UI.
-        const startMode = !colored && (st.mode === "color" || st.mode === "vertex") ? "shaded" : st.mode;
+        const startMode =
+          !colored && (st.mode === "color" || st.mode === "vertex")
+            ? "shaded"
+            : st.mode;
         if (startMode !== st.mode) setMode(startMode);
         setMaterials(startMode);
         gridGroup.visible = st.grid;
         axesGroup.visible = st.axes;
-        scene.background = BACKGROUNDS[st.bg][1] ? new THREE.Color(BACKGROUNDS[st.bg][1]!) : null;
+        scene.background = BACKGROUNDS[st.bg][1]
+          ? new THREE.Color(BACKGROUNDS[st.bg][1]!)
+          : null;
         fit();
         lighting(st.light, st.azimuth);
         if (st.ortho) api.current.projection(true);
+        configure();
         setLoaded(true);
       },
       undefined,
-      () => alive && setError("3D 모델 미리보기를 읽지 못했습니다. 원본 PLY와 로그를 확인하세요."),
+      () =>
+        alive &&
+        setError(
+          "3D 모델 미리보기를 읽지 못했습니다. 원본 PLY와 로그를 확인하세요.",
+        ),
     );
     const observer = new ResizeObserver(resize);
     observer.observe(node);
@@ -409,7 +537,11 @@ export default function MeshViewer({
       renderer.setAnimationLoop(null);
       controls.dispose();
       scene.traverse((c) => {
-        if (c instanceof THREE.Mesh || c instanceof THREE.LineSegments || c instanceof THREE.Points) {
+        if (
+          c instanceof THREE.Mesh ||
+          c instanceof THREE.LineSegments ||
+          c instanceof THREE.Points
+        ) {
           c.geometry.dispose();
           disposeMaterial(c.material);
         }
@@ -419,29 +551,43 @@ export default function MeshViewer({
     };
   }, [url, legacyColors, reload]);
 
+  useEffect(() => {
+    api.current.configure();
+  }, [displaySettings]);
+
   function onKey(e: React.KeyboardEvent) {
     const target = e.target as HTMLElement;
     if (target.tagName === "INPUT") return;
     const k = e.key.toLowerCase();
     const numpad = e.code.startsWith("Numpad");
     if (k === "f") api.current.fit();
-    else if (numpad && e.code === "Numpad1") api.current.view(e.ctrlKey ? "back" : "front");
-    else if (numpad && e.code === "Numpad3") api.current.view(e.ctrlKey ? "left" : "right");
-    else if (numpad && e.code === "Numpad7") api.current.view(e.ctrlKey ? "bottom" : "top");
+    else if (numpad && e.code === "Numpad1")
+      api.current.view(e.ctrlKey ? "back" : "front");
+    else if (numpad && e.code === "Numpad3")
+      api.current.view(e.ctrlKey ? "left" : "right");
+    else if (numpad && e.code === "Numpad7")
+      api.current.view(e.ctrlKey ? "bottom" : "top");
     else if (numpad && e.code === "Numpad5") {
       setOrtho(!ortho);
       api.current.projection(!ortho);
+      onDisplayChange?.({ orthographic: !ortho });
     } else return;
     e.preventDefault();
   }
   const chooseMode = (m: ViewMode) => {
     setMode(m);
     api.current.mode(m);
+    onDisplayChange?.({ mesh_mode: m });
   };
   const fmtN = (n: number) => n.toLocaleString("ko-KR");
 
   return (
-    <div className="mesh-frame" tabIndex={0} onKeyDown={onKey} aria-label="3D 뷰포트 — F 맞춤, Numpad 1/3/7 시점, Numpad 5 투영 전환">
+    <div
+      className="mesh-frame"
+      tabIndex={0}
+      onKeyDown={onKey}
+      aria-label="3D 뷰포트 — F 맞춤, Numpad 1/3/7 시점, Numpad 5 투영 전환"
+    >
       <div ref={host} className="three-host" aria-label="3D 모델 화면" />
       <div className="hud vp-modes" role="group" aria-label="표시 모드">
         {MODES.map(([key, text, needsColor]) => (
@@ -450,7 +596,11 @@ export default function MeshViewer({
             className="btn s ghost"
             aria-pressed={mode === key}
             disabled={needsColor && loaded && !hasColor}
-            title={needsColor && loaded && !hasColor ? "이 파일에는 정점 색상이 없습니다" : undefined}
+            title={
+              needsColor && loaded && !hasColor
+                ? "이 파일에는 정점 색상이 없습니다"
+                : undefined
+            }
             onClick={() => chooseMode(key)}
           >
             {text}
@@ -458,18 +608,114 @@ export default function MeshViewer({
         ))}
       </div>
       <div className="tool-col" style={{ left: 16, top: 56 }}>
-        <button className="icon-btn" title="회전" aria-label="회전" aria-pressed={!pan} onClick={() => { setPan(false); api.current.pan(false); }}><Orbit size={18} /></button>
-        <button className="icon-btn" title="이동" aria-label="이동" aria-pressed={pan} onClick={() => { setPan(true); api.current.pan(true); }}><Hand size={18} /></button>
-        <button className="icon-btn" title="객체에 맞춤 (F)" aria-label="객체에 맞춤" onClick={() => api.current.fit()}><Scan size={18} /></button>
-        <button className="icon-btn" title="카메라 초기화" aria-label="카메라 초기화" onClick={() => { setOrtho(false); api.current.projection(false); api.current.fit(); }}><RotateCcw size={17} /></button>
+        <button
+          className="icon-btn"
+          title="회전"
+          aria-label="회전"
+          aria-pressed={!pan}
+          onClick={() => {
+            setPan(false);
+            api.current.pan(false);
+          }}
+        >
+          <Orbit size={18} />
+        </button>
+        <button
+          className="icon-btn"
+          title="이동"
+          aria-label="이동"
+          aria-pressed={pan}
+          onClick={() => {
+            setPan(true);
+            api.current.pan(true);
+          }}
+        >
+          <Hand size={18} />
+        </button>
+        <button
+          className="icon-btn"
+          title="객체에 맞춤 (F)"
+          aria-label="객체에 맞춤"
+          onClick={() => api.current.fit()}
+        >
+          <Scan size={18} />
+        </button>
+        <button
+          className="icon-btn"
+          title="카메라 초기화"
+          aria-label="카메라 초기화"
+          onClick={() => {
+            setOrtho(false);
+            api.current.projection(false);
+            onDisplayChange?.({ orthographic: false });
+            api.current.fit();
+          }}
+        >
+          <RotateCcw size={17} />
+        </button>
         <span className="tool-sep" />
-        <button className="icon-btn" title="바닥 그리드" aria-label="바닥 그리드" aria-pressed={grid} onClick={() => { setGrid(!grid); api.current.grid(!grid); }}><Grid3x3 size={17} /></button>
-        <button className="icon-btn" title="좌표축 (빨강 X · 초록 Y · 파랑 Z)" aria-label="좌표축" aria-pressed={axes} onClick={() => { setAxes(!axes); api.current.axes(!axes); }}><Axis3d size={17} /></button>
-        <button className="icon-btn" title="메시 통계" aria-label="메시 통계" aria-pressed={showStats} onClick={() => setShowStats(!showStats)}><BarChart3 size={17} /></button>
-        <button className="icon-btn" title="조명·배경·점 크기" aria-label="뷰포트 표시 설정" aria-pressed={panel} onClick={() => setPanel(!panel)}><SlidersHorizontal size={17} /></button>
+        <button
+          className="icon-btn"
+          title="바닥 그리드"
+          aria-label="바닥 그리드"
+          aria-pressed={grid}
+          onClick={() => {
+            setGrid(!grid);
+            api.current.grid(!grid);
+            onDisplayChange?.({ grid: !grid });
+          }}
+        >
+          <Grid3x3 size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          title="좌표축 (빨강 X · 초록 Y · 파랑 Z)"
+          aria-label="좌표축"
+          aria-pressed={axes}
+          onClick={() => {
+            setAxes(!axes);
+            api.current.axes(!axes);
+            onDisplayChange?.({ axes: !axes });
+          }}
+        >
+          <Axis3d size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          title="메시 통계"
+          aria-label="메시 통계"
+          aria-pressed={showStats}
+          onClick={() => setShowStats(!showStats)}
+        >
+          <BarChart3 size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          title="조명·배경·점 크기"
+          aria-label="뷰포트 표시 설정"
+          aria-pressed={panel}
+          onClick={() => setPanel(!panel)}
+        >
+          <SlidersHorizontal size={17} />
+        </button>
         <span className="tool-sep" />
-        <button className="icon-btn" title="스크린샷 저장 (PNG)" aria-label="스크린샷 저장" disabled={!loaded} onClick={() => api.current.screenshot()}><Camera size={17} /></button>
-        <button className="icon-btn" title="3D 모델 다시 불러오기" aria-label="3D 모델 다시 불러오기" onClick={() => setReload((r) => r + 1)}><RefreshCw size={16} /></button>
+        <button
+          className="icon-btn"
+          title="스크린샷 저장 (PNG)"
+          aria-label="스크린샷 저장"
+          disabled={!loaded}
+          onClick={() => api.current.screenshot()}
+        >
+          <Camera size={17} />
+        </button>
+        <button
+          className="icon-btn"
+          title="3D 모델 다시 불러오기"
+          aria-label="3D 모델 다시 불러오기"
+          onClick={() => setReload((r) => r + 1)}
+        >
+          <RefreshCw size={16} />
+        </button>
       </div>
 
       <div className="vp-gizmo" ref={gizmo}>
@@ -495,43 +741,155 @@ export default function MeshViewer({
       </div>
       <div className="hud vp-views" role="group" aria-label="카메라 시점">
         {VIEWS.map(([v, text, title]) => (
-          <button key={v} className="btn s ghost" title={title} onClick={() => api.current.view(v)}>{text}</button>
+          <button
+            key={v}
+            className="btn s ghost"
+            title={title}
+            onClick={() => api.current.view(v)}
+          >
+            {text}
+          </button>
         ))}
         <span className="vsep" />
-        <button className="btn s ghost" aria-pressed={!ortho} title="원근 투영 (Numpad 5)" onClick={() => { setOrtho(false); api.current.projection(false); }}>원근</button>
-        <button className="btn s ghost" aria-pressed={ortho} title="직교 투영 (Numpad 5)" onClick={() => { setOrtho(true); api.current.projection(true); }}>직교</button>
+        <button
+          className="btn s ghost"
+          aria-pressed={!ortho}
+          title="원근 투영 (Numpad 5)"
+          onClick={() => {
+            setOrtho(false);
+            api.current.projection(false);
+            onDisplayChange?.({ orthographic: false });
+          }}
+        >
+          원근
+        </button>
+        <button
+          className="btn s ghost"
+          aria-pressed={ortho}
+          title="직교 투영 (Numpad 5)"
+          onClick={() => {
+            setOrtho(true);
+            api.current.projection(true);
+            onDisplayChange?.({ orthographic: true });
+          }}
+        >
+          직교
+        </button>
       </div>
 
       {showStats && stats && (
         <div className="hud vp-stats" aria-label="메시 통계">
-          <span>정점 <b className="num">{fmtN(stats.vertices)}</b></span>
-          <span>삼각형 <b className="num">{fmtN(stats.triangles)}</b></span>
-          <span>크기 <b className="num">{stats.size.map((x) => x.toFixed(2)).join(" × ")}</b></span>
+          <span>
+            정점 <b className="num">{fmtN(stats.vertices)}</b>
+          </span>
+          <span>
+            삼각형 <b className="num">{fmtN(stats.triangles)}</b>
+          </span>
+          <span>
+            크기{" "}
+            <b className="num">
+              {stats.size.map((x) => x.toFixed(2)).join(" × ")}
+            </b>
+          </span>
           <span>{stats.colored ? "정점 색상 있음" : "정점 색상 없음"}</span>
         </div>
       )}
 
       {panel && (
-        <div className="hud vp-panel" role="dialog" aria-label="뷰포트 표시 설정">
-          <div className="row"><b className="grow">뷰포트 표시 설정</b><button className="btn s ghost" onClick={() => setPanel(false)}>닫기</button></div>
+        <div
+          className="hud vp-panel"
+          role="dialog"
+          aria-label="뷰포트 표시 설정"
+        >
+          <div className="row">
+            <b className="grow">뷰포트 표시 설정</b>
+            <button className="btn s ghost" onClick={() => setPanel(false)}>
+              닫기
+            </button>
+          </div>
           <label className="vp-field">
-            <span className="row"><Sun size={13} />밝기 <span className="sp" /><span className="num">{Math.round(light * 100)}%</span></span>
-            <input type="range" min={0.2} max={2.5} step={0.05} value={light} onChange={(e) => { const v = +e.target.value; setLight(v); api.current.light(v, azimuth); }} />
+            <span className="row">
+              <Sun size={13} />
+              밝기 <span className="sp" />
+              <span className="num">{Math.round(light * 100)}%</span>
+            </span>
+            <input
+              type="range"
+              min={0.2}
+              max={2.5}
+              step={0.05}
+              value={light}
+              onChange={(e) => {
+                const v = +e.target.value;
+                setLight(v);
+                api.current.light(v, azimuth);
+                onDisplayChange?.({ light: v });
+              }}
+            />
           </label>
           <label className="vp-field">
-            <span className="row">주 조명 방향 <span className="sp" /><span className="num">{azimuth}°</span></span>
-            <input type="range" min={-180} max={180} step={5} value={azimuth} onChange={(e) => { const v = +e.target.value; setAzimuth(v); api.current.light(light, v); }} />
+            <span className="row">
+              주 조명 방향 <span className="sp" />
+              <span className="num">{azimuth}°</span>
+            </span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={5}
+              value={azimuth}
+              onChange={(e) => {
+                const v = +e.target.value;
+                setAzimuth(v);
+                api.current.light(light, v);
+                onDisplayChange?.({ light_azimuth: v });
+              }}
+            />
           </label>
-          <p className="hint">조명은 셰이딩·정점 색상·와이어프레임 모드에 적용됩니다. 색상 메시 모드는 파일의 색을 그대로 보여 줍니다.</p>
+          <p className="hint">
+            조명은 셰이딩·정점 색상·와이어프레임 모드에 적용됩니다. 색상 메시
+            모드는 파일의 색을 그대로 보여 줍니다.
+          </p>
           <label className="vp-field">
-            <span className="row">포인트 크기 <span className="sp" /><span className="num">{pointSize}px</span></span>
-            <input type="range" min={1} max={8} step={1} value={pointSize} onChange={(e) => { const v = +e.target.value; setPointSize(v); api.current.pointSize(v); }} />
+            <span className="row">
+              포인트 크기 <span className="sp" />
+              <span className="num">{pointSize}px</span>
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={8}
+              step={1}
+              value={pointSize}
+              onChange={(e) => {
+                const v = +e.target.value;
+                setPointSize(v);
+                api.current.pointSize(v);
+                onDisplayChange?.({ point_size: v });
+              }}
+            />
           </label>
           <div className="vp-field">
             <span>배경</span>
             <div className="row" style={{ gap: 8 }}>
               {BACKGROUNDS.map(([name, colour], i) => (
-                <button key={name} className="sw" title={name} aria-label={`배경 ${name}`} aria-pressed={bg === i} style={{ width: 18, height: 18, background: colour || "#26262b" }} onClick={() => { setBg(i); api.current.background(colour); }} />
+                <button
+                  key={name}
+                  className="sw"
+                  title={name}
+                  aria-label={`배경 ${name}`}
+                  aria-pressed={bg === i}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    background: colour || "#26262b",
+                  }}
+                  onClick={() => {
+                    setBg(i);
+                    api.current.background(colour);
+                    onDisplayChange?.({ background: colour || "#1c1c20" });
+                  }}
+                />
               ))}
             </div>
           </div>
@@ -539,18 +897,34 @@ export default function MeshViewer({
       )}
 
       <div className="hud vp-help">
-        <span className="row" style={{ gap: 5 }}><span className="kbd">좌 드래그</span>회전</span>
-        <span className="row" style={{ gap: 5 }}><span className="kbd">휠</span>확대/축소</span>
-        <span className="row" style={{ gap: 5 }}><span className="kbd">우 드래그</span>이동</span>
-        <span className="row" style={{ gap: 5 }}><span className="kbd">F</span>맞춤</span>
+        <span className="row" style={{ gap: 5 }}>
+          <span className="kbd">좌 드래그</span>회전
+        </span>
+        <span className="row" style={{ gap: 5 }}>
+          <span className="kbd">휠</span>확대/축소
+        </span>
+        <span className="row" style={{ gap: 5 }}>
+          <span className="kbd">우 드래그</span>이동
+        </span>
+        <span className="row" style={{ gap: 5 }}>
+          <span className="kbd">F</span>맞춤
+        </span>
       </div>
-      {!loaded && !error && <p className="viewer-message">3D 모델을 불러오는 중입니다…</p>}
+      {!loaded && !error && (
+        <p className="viewer-message">3D 모델을 불러오는 중입니다…</p>
+      )}
       {loaded && !hasColor && (
         <div className="hud" style={{ right: 16, bottom: 14 }}>
-          <span className="warn">이 파일에는 정점 색상이 없어 형상만 표시합니다.</span>
+          <span className="warn">
+            이 파일에는 정점 색상이 없어 형상만 표시합니다.
+          </span>
         </div>
       )}
-      {error && <p role="alert" className="viewer-message error">{error}</p>}
+      {error && (
+        <p role="alert" className="viewer-message error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

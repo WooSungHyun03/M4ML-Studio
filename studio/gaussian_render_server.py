@@ -103,7 +103,9 @@ def main():
         model = Path(args.model)
         ply = model / "point_cloud" / f"iteration_{args.iteration}" / "point_cloud.ply"
         if not ply.is_file():
-            raise FileNotFoundError(f"학습 결과 파일이 없습니다: iteration_{args.iteration}")
+            raise FileNotFoundError(
+                f"학습 결과 파일이 없습니다: iteration_{args.iteration}"
+            )
         cfg = read_cfg(model)
         parser = argparse.ArgumentParser()
         lp, pp = ModelParams(parser), PipelineParams(parser)
@@ -113,7 +115,9 @@ def main():
         white = bool(cfg.get("white_background", False))
         gaussians = GaussianModel(int(cfg.get("sh_degree", 3)))
         gaussians.load_ply(str(ply))
-        background = torch.tensor([1, 1, 1] if white else [0, 0, 0], dtype=torch.float32, device="cuda")
+        background = torch.tensor(
+            [1, 1, 1] if white else [0, 0, 0], dtype=torch.float32, device="cuda"
+        )
         torch.cuda.synchronize()
     except Exception as exc:  # reported to the backend, which shows a Korean message
         _say(ready=False, error=str(exc), oom="out of memory" in str(exc).lower())
@@ -141,21 +145,63 @@ def main():
         view = torch.reshape(torch.tensor(message["view_matrix"]), (4, 4)).cuda()
         view[:, 1] = -view[:, 1]
         view[:, 2] = -view[:, 2]
-        proj = torch.reshape(torch.tensor(message["view_projection_matrix"]), (4, 4)).cuda()
+        proj = torch.reshape(
+            torch.tensor(message["view_projection_matrix"]), (4, 4)
+        ).cuda()
         proj[:, 1] = -proj[:, 1]
-        cam = MiniCam(width, height, message["fov_y"], message["fov_x"], message["z_near"], message["z_far"], view, proj)
+        cam = MiniCam(
+            width,
+            height,
+            message["fov_y"],
+            message["fov_x"],
+            message["z_near"],
+            message["z_far"],
+            view,
+            proj,
+        )
         mode = int(message.get("render_mode", 0))
         item = render_items[mode] if 0 <= mode < len(render_items) else "RGB"
         scaling = float(message.get("scaling_modifier", 1.0))
+        color = message.get("background")
+        if color is not None and (
+            not isinstance(color, list)
+            or len(color) != 3
+            or any(
+                type(v) not in (int, float)
+                or not __import__("math").isfinite(v)
+                or not 0 <= v <= 1
+                for v in color
+            )
+        ):
+            raise ValueError("잘못된 렌더링 배경색입니다.")
+        render_background = (
+            torch.tensor(color, dtype=torch.float32, device="cuda")
+            if color is not None
+            else background
+        )
         with gpu_lock, torch.no_grad():
             start = time.perf_counter()
             if item == "ObjectMark":
-                pkg = render(cam, gaussians, pipe, background, scaling, need_objectmark=True)
+                pkg = render(
+                    cam,
+                    gaussians,
+                    pipe,
+                    render_background,
+                    scaling,
+                    need_objectmark=True,
+                )
                 image = colormap(pkg["rend_object_mark"])
             else:
-                pkg = render(cam, gaussians, pipe, background, scaling)
+                pkg = render(cam, gaussians, pipe, render_background, scaling)
                 image = render_net_image(pkg, render_items, mode, cam)
-            data = (torch.clamp(image, 0, 1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy()
+            data = (
+                (torch.clamp(image, 0, 1.0) * 255)
+                .byte()
+                .permute(1, 2, 0)
+                .contiguous()
+                .cpu()
+                .numpy()
+            )
             return memoryview(data), (time.perf_counter() - start) * 1000
 
     def serve(conn):
@@ -178,8 +224,15 @@ def main():
             conn.close()
             client_slots.release()
 
-    _say(ready=True, port=port, gaussians=count, render_items=render_items, iteration=args.iteration,
-         load_seconds=round(time.monotonic() - t0, 2), vram_mb=round(torch.cuda.memory_allocated() / 2**20))
+    _say(
+        ready=True,
+        port=port,
+        gaussians=count,
+        render_items=render_items,
+        iteration=args.iteration,
+        load_seconds=round(time.monotonic() - t0, 2),
+        vram_mb=round(torch.cuda.memory_allocated() / 2**20),
+    )
     while True:
         conn, _ = listener.accept()
         if not client_slots.acquire(blocking=False):

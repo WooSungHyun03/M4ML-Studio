@@ -10,11 +10,14 @@ import {
   ZoomOut,
   Scan,
 } from "lucide-react";
+import { setting, type Values, type SettingsBundle } from "./TaskSettings";
 import type { Point } from "./api";
 import { screenToImage } from "./geometry";
 
 type Tool = "positive" | "negative" | "brush" | "erase";
 interface Props {
+  settings?: SettingsBundle;
+  onDisplayChange?:(v:Values)=>void;
   image: string;
   mask?: string;
   points: Point[];
@@ -40,13 +43,14 @@ interface Props {
   saveLabel?: string;
 }
 
-const MASK_RGB = [240, 165, 58];
 const EDGE_RGB = [255, 196, 110];
 
 /** Interactive mask canvas: click prompts (+/−), brush/erase correction, compare view.
  *  Pixel coordinates are always those of the displayed (undistorted, registered) image. */
 export function MaskEditor({
   image,
+  settings,
+  onDisplayChange,
   mask,
   points,
   onPoints,
@@ -82,6 +86,19 @@ export function MaskEditor({
     [future, setFuture] = useState<ImageData[]>([]),
     [version, setVersion] = useState(0),
     [error, setError] = useState("");
+  useEffect(() => {
+    setOpacity(setting(settings, "review", "overlay_opacity", 0.4));
+    setRadius(setting(settings, "review", "brush_size", 18));
+    setViewMode(
+      setting(settings, "review", "mask_only", false)
+        ? "binary"
+        : setting(settings, "review", "show_boundary", false)
+          ? "outline"
+          : "overlay",
+    );
+  }, [settings]);
+  const maskColor = setting(settings, "review", "overlay_color", "#f0a53a");
+  const maskRGB = [1, 3, 5].map((i) => parseInt(maskColor.slice(i, i + 2), 16));
   const lastImage = useRef(image);
   const [loadedImage, setLoadedImage] = useState("");
   const [loadedMask, setLoadedMask] = useState<string | undefined>(undefined);
@@ -128,7 +145,7 @@ export function MaskEditor({
         src[i - w * 4] < 128 ||
         src[i + w * 4] < 128;
       if (viewMode === "outline" && !edge) continue;
-      const c = edge ? EDGE_RGB : MASK_RGB;
+      const c = edge ? EDGE_RGB : maskRGB;
       d[i] = c[0];
       d[i + 1] = c[1];
       d[i + 2] = c[2];
@@ -147,7 +164,9 @@ export function MaskEditor({
       const [w, h] = [img.naturalWidth, img.naturalHeight];
       binary.current.width = w;
       binary.current.height = h;
-      const ctx = binary.current.getContext("2d", { willReadFrequently: true })!;
+      const ctx = binary.current.getContext("2d", {
+        willReadFrequently: true,
+      })!;
       ctx.fillStyle = "black";
       ctx.fillRect(0, 0, w, h);
       if (mask) {
@@ -213,7 +232,7 @@ export function MaskEditor({
   }, []);
   useEffect(() => {
     paint();
-  }, [viewMode, size, version]);
+  }, [maskColor, viewMode, size, version]);
 
   function location(e: React.PointerEvent) {
     return screenToImage(
@@ -243,7 +262,7 @@ export function MaskEditor({
     // Draw into the binary mask and, for responsiveness, directly onto the overlay.
     for (const [ctx, colour] of [
       [binary.current.getContext("2d")!, tool === "erase" ? "black" : "white"],
-      [overlay.current!.getContext("2d")!, `rgb(${MASK_RGB.join(",")})`],
+      [overlay.current!.getContext("2d")!, `rgb(${maskRGB.join(",")})`],
     ] as const) {
       ctx.save();
       if (ctx.canvas === overlay.current && tool === "erase")
@@ -268,7 +287,10 @@ export function MaskEditor({
   }
   function down(e: React.PointerEvent<HTMLCanvasElement>) {
     if (disabled || loadedImage !== image || size[0] <= 1 || size[1] <= 1) return;
-    if ((!allowSave || !editorReady) && (tool === "brush" || tool === "erase")) {
+    if (
+      (!allowSave || !editorReady) &&
+      (tool === "brush" || tool === "erase")
+    ) {
       setTool("positive");
       return;
     }
@@ -316,7 +338,9 @@ export function MaskEditor({
     }
     if (!history.length) return;
     setFuture((f) => [...f, snapshot()]);
-    binary.current.getContext("2d")!.putImageData(history[history.length - 1], 0, 0);
+    binary.current
+      .getContext("2d")!
+      .putImageData(history[history.length - 1], 0, 0);
     setHistory((h) => h.slice(0, -1));
     setDirty(true);
     setVersion((v) => v + 1);
@@ -328,7 +352,9 @@ export function MaskEditor({
     }
     if (!future.length) return;
     setHistory(remember);
-    binary.current.getContext("2d")!.putImageData(future[future.length - 1], 0, 0);
+    binary.current
+      .getContext("2d")!
+      .putImageData(future[future.length - 1], 0, 0);
     setFuture((f) => f.slice(0, -1));
     setDirty(true);
     setVersion((v) => v + 1);
@@ -394,7 +420,12 @@ export function MaskEditor({
               width={size[0]}
               height={size[1]}
               style={{
-                opacity: viewMode === "original" ? 0 : viewMode === "binary" ? 1 : opacity,
+                opacity:
+                  viewMode === "original"
+                    ? 0
+                    : viewMode === "binary"
+                      ? 1
+                      : opacity,
                 clipPath: compare ? `inset(0 0 0 ${compare}%)` : undefined,
               }}
               aria-label="마스크 편집 영역. 클릭하면 객체에 포함하고 Alt 클릭이나 오른쪽 클릭은 제외합니다."
@@ -403,8 +434,10 @@ export function MaskEditor({
               onPointerDown={down}
               onPointerMove={(e) => {
                 if (pan.current) {
-                  viewport.current!.scrollLeft = pan.current.sx + pan.current.x - e.clientX;
-                  viewport.current!.scrollTop = pan.current.sy + pan.current.y - e.clientY;
+                  viewport.current!.scrollLeft =
+                    pan.current.sx + pan.current.x - e.clientX;
+                  viewport.current!.scrollTop =
+                    pan.current.sy + pan.current.y - e.clientY;
                 } else if (drawing.current) stroke(location(e));
               }}
               onPointerUp={() => {
@@ -430,7 +463,9 @@ export function MaskEditor({
                 if (e.key === "2" || e.key === "-") setTool("negative");
                 if (e.key === "Tab") {
                   e.preventDefault();
-                  setViewMode((m) => (m === "original" ? "overlay" : "original"));
+                  setViewMode((m) =>
+                    m === "original" ? "overlay" : "original",
+                  );
                 }
                 if (e.key === "Enter" && !pending && allowSave && editorReady) {
                   e.preventDefault();
@@ -468,7 +503,11 @@ export function MaskEditor({
                     )}
                     <circle r={pointR} fill={p.label ? "#4cc98a" : "#ff5d52"} stroke="#fff" strokeWidth={pointStroke} />
                     <path
-                      d={p.label ? `M${-pointR * 0.45} 0H${pointR * 0.45}M0 ${-pointR * 0.45}V${pointR * 0.45}` : `M${-pointR * 0.45} 0H${pointR * 0.45}`}
+                      d={
+                        p.label
+                          ? `M${-pointR * 0.45} 0H${pointR * 0.45}M0 ${-pointR * 0.45}V${pointR * 0.45}`
+                          : `M${-pointR * 0.45} 0H${pointR * 0.45}`
+                      }
                       stroke="#fff"
                       strokeWidth={pointStroke * 1.1}
                       strokeLinecap="round"
@@ -482,7 +521,11 @@ export function MaskEditor({
             </svg>
           </div>
         </div>
-        <div className="tool-col" style={{ left: 12, top: 12 }} aria-label="마스크 편집 도구">
+        <div
+          className="tool-col"
+          style={{ left: 12, top: 12 }}
+          aria-label="마스크 편집 도구"
+        >
           {(
             [
               ["positive", "포함 클릭 (1)", CirclePlus],
@@ -496,33 +539,111 @@ export function MaskEditor({
               className="icon-btn"
               title={title}
               aria-label={title}
-              disabled={disabled || ((!allowSave || pending || !editorReady) && (key === "brush" || key === "erase"))}
+              disabled={
+                disabled ||
+                ((!allowSave || pending || !editorReady) &&
+                  (key === "brush" || key === "erase"))
+              }
               aria-pressed={tool === key}
               onClick={() => setTool(key)}
             >
               <Icon size={18} />
             </button>
           ))}
-          <button className="icon-btn" title="실행 취소 (Ctrl+Z)" aria-label="실행 취소" disabled={disabled || (tool === "positive" || tool === "negative" ? !canPointUndo : !history.length)} onClick={undo}>
+          <button
+            className="icon-btn"
+            title="실행 취소 (Ctrl+Z)"
+            aria-label="실행 취소"
+            disabled={
+              disabled ||
+              (tool === "positive" || tool === "negative"
+                ? !canPointUndo
+                : !history.length)
+            }
+            onClick={undo}
+          >
             <Undo2 size={17} />
           </button>
-          <button className="icon-btn" title="다시 실행 (Ctrl+Shift+Z)" aria-label="다시 실행" disabled={disabled || (tool === "positive" || tool === "negative" ? !canPointRedo : !future.length)} onClick={redo}>
+          <button
+            className="icon-btn"
+            title="다시 실행 (Ctrl+Shift+Z)"
+            aria-label="다시 실행"
+            disabled={
+              disabled ||
+              (tool === "positive" || tool === "negative"
+                ? !canPointRedo
+                : !future.length)
+            }
+            onClick={redo}
+          >
             <Redo2 size={17} />
           </button>
         </div>
-        {status && <div className="hud" style={{ left: 60, top: 12, pointerEvents: "none" }}>{status}</div>}
-        {label && <div className="hud" style={{ right: 12, top: 12, pointerEvents: "none" }}>{label}</div>}
-        <div className="hud" style={{ left: 12, bottom: 12, gap: 12, pointerEvents: "none" }}>
-          <span className="row" style={{ gap: 5 }}><span className="kbd">클릭</span>포함</span>
-          <span className="row" style={{ gap: 5 }}><span className="kbd">Alt</span>+<span className="kbd">클릭</span>제외</span>
-          <span className="row" style={{ gap: 5 }}><span className="kbd">Shift</span>+드래그 이동</span>
-          <span className="row" style={{ gap: 5 }}><span className="kbd">Ctrl+Z</span>되돌리기</span>
+        {status && (
+          <div
+            className="hud"
+            style={{ left: 60, top: 12, pointerEvents: "none" }}
+          >
+            {status}
+          </div>
+        )}
+        {label && (
+          <div
+            className="hud"
+            style={{ right: 12, top: 12, pointerEvents: "none" }}
+          >
+            {label}
+          </div>
+        )}
+        <div
+          className="hud"
+          style={{ left: 12, bottom: 12, gap: 12, pointerEvents: "none" }}
+        >
+          <span className="row" style={{ gap: 5 }}>
+            <span className="kbd">클릭</span>포함
+          </span>
+          <span className="row" style={{ gap: 5 }}>
+            <span className="kbd">Alt</span>+<span className="kbd">클릭</span>
+            제외
+          </span>
+          <span className="row" style={{ gap: 5 }}>
+            <span className="kbd">Shift</span>+드래그 이동
+          </span>
+          <span className="row" style={{ gap: 5 }}>
+            <span className="kbd">Ctrl+Z</span>되돌리기
+          </span>
         </div>
-        <div className="hud" style={{ right: 12, bottom: 12, padding: "3px 4px", gap: 2 }}>
-          <button className="icon-btn" aria-label="축소" onClick={() => setZoom((z) => Math.max(0.25, z / 1.3))}><ZoomOut size={15} /></button>
-          <span className="num" style={{ width: 44, textAlign: "center", color: "#ececef" }}>{Math.round(scale * 100)}%</span>
-          <button className="icon-btn" aria-label="확대" onClick={() => setZoom((z) => Math.min(8, z * 1.3))}><ZoomIn size={15} /></button>
-          <button className="icon-btn" aria-label="화면 맞춤" onClick={() => setZoom(1)}><Scan size={15} /></button>
+        <div
+          className="hud"
+          style={{ right: 12, bottom: 12, padding: "3px 4px", gap: 2 }}
+        >
+          <button
+            className="icon-btn"
+            aria-label="축소"
+            onClick={() => setZoom((z) => Math.max(0.25, z / 1.3))}
+          >
+            <ZoomOut size={15} />
+          </button>
+          <span
+            className="num"
+            style={{ width: 44, textAlign: "center", color: "#ececef" }}
+          >
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            className="icon-btn"
+            aria-label="확대"
+            onClick={() => setZoom((z) => Math.min(8, z * 1.3))}
+          >
+            <ZoomIn size={15} />
+          </button>
+          <button
+            className="icon-btn"
+            aria-label="화면 맞춤"
+            onClick={() => setZoom(1)}
+          >
+            <Scan size={15} />
+          </button>
         </div>
       </div>
       <div className="editor-footer">
@@ -533,7 +654,7 @@ export function MaskEditor({
             ["binary", "마스크만"],
             ["original", "원본"],
           ].map(([key, text]) => (
-            <button key={key} aria-pressed={viewMode === key} onClick={() => setViewMode(key)}>
+            <button key={key} aria-pressed={viewMode === key} onClick={() => {setViewMode(key);onDisplayChange?.({mask_only:key==='binary',show_boundary:key==='outline'})}}>
               {text}
             </button>
           ))}
@@ -544,13 +665,13 @@ export function MaskEditor({
         </label>
         <label>
           투명도
-          <input type="range" min="0.1" max="0.9" step="0.05" value={opacity} onChange={(e) => setOpacity(+e.target.value)} aria-label="마스크 투명도" style={{ width: 90 }} />
+          <input type="range" min="0" max="1" step="0.05" value={opacity} onChange={(e) => {setOpacity(+e.target.value);onDisplayChange?.({overlay_opacity:+e.target.value})}} aria-label="마스크 투명도" style={{ width: 90 }} />
           <span className="num t2">{Math.round(opacity * 100)}%</span>
         </label>
         {(tool === "brush" || tool === "erase") && (
           <label>
             붓 크기
-            <input aria-label="붓 반지름" type="range" min="2" max="100" value={radius} onChange={(e) => setRadius(+e.target.value)} style={{ width: 80 }} />
+            <input aria-label="붓 반지름" type="range" min="2" max="100" value={radius} onChange={(e) => {setRadius(+e.target.value);onDisplayChange?.({brush_size:+e.target.value})}} style={{ width: 80 }} />
           </label>
         )}
         <span className="sp" />

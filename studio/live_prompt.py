@@ -52,9 +52,14 @@ def run_live(store, project_id, request, prepare):
     folder = root / "live" / request["session_id"]
     out = folder / f"{revision:06d}" / (Path(request["reference"]).stem + ".png")
     session = segmentation_session.get(device, root / "logs" / "live-selection.log")
-    reply = session.predict(image, request["points"], request["labels"], out)
+    options = {"parameters": request["parameters"]} if request.get("parameters") else {}
+    reply = session.predict(image, request["points"], request["labels"], out, **options)
     if not reply.get("ok"):
-        raise ValueError(segmentation_session.failure_description(reply.get("error") or "마스크를 계산하지 못했습니다."))
+        raise ValueError(
+            segmentation_session.failure_description(
+                reply.get("error") or "마스크를 계산하지 못했습니다."
+            )
+        )
     published = {}
 
     def finish(doc):
@@ -81,7 +86,9 @@ def run_live(store, project_id, request, prepare):
     store.update(project_id, finish)
     # Keep only the latest few revision folders of this session (bounded disk use).
     try:
-        cleanup_previews(root, folder, store.get(project_id).get("preview", {}).get("path"))
+        cleanup_previews(
+            root, folder, store.get(project_id).get("preview", {}).get("path")
+        )
     except OSError:
         pass
     return bool(published)

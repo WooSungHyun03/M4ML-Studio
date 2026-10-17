@@ -104,31 +104,74 @@ class GaussianRemoteRenderingProvider(RenderingProvider):
         return sorted(out)
 
     def locate_model(self, root, project, iteration=None):
+        active = project.get("active_gaussian_artifact")
+        if active:
+            item = next(
+                (
+                    a
+                    for a in project.get("result_artifacts", [])
+                    if a["id"] == active and a["kind"] == "gaussian"
+                ),
+                None,
+            )
+            if not item:
+                raise ValueError("선택한 Gaussian 결과를 찾지 못했습니다.")
+            model = (root / item["model"]).resolve()
+            ply = (root / item["path"]).resolve()
+            if not model.is_relative_to(root.resolve()) or not ply.is_relative_to(
+                model
+            ):
+                raise ValueError("결과 경로가 유효하지 않습니다.")
+            if not ply.is_file():
+                raise FileNotFoundError("Gaussian 결과 파일이 없습니다.")
+            return dict(
+                model=str(model),
+                source=str(model),
+                ply=str(ply),
+                iterations=[0],
+                iteration=0,
+                gaussians=item["vertices"],
+                ply_bytes=ply.stat().st_size,
+                cameras=[],
+                target=item["target"],
+                radius=item["radius"],
+            )
         training = project.get("training") or {}
         scene = project.get("scene")
         if not training.get("path") or not scene:
             raise FileNotFoundError("3D 재구성 학습 결과가 아직 없습니다.")
         model = (root / training["path"]).resolve()
         source = (root / scene).resolve()
-        if not model.is_relative_to(root.resolve()) or not source.is_relative_to(root.resolve()):
+        if not model.is_relative_to(root.resolve()) or not source.is_relative_to(
+            root.resolve()
+        ):
             raise ValueError("학습 결과 경로가 프로젝트 밖을 가리킵니다.")
         iterations = self.iterations(model)
         if not iterations:
-            raise FileNotFoundError("학습된 Gaussian 파일(point_cloud.ply)을 찾지 못했습니다.")
+            raise FileNotFoundError(
+                "학습된 Gaussian 파일(point_cloud.ply)을 찾지 못했습니다."
+            )
         chosen = iteration if iteration in iterations else iterations[-1]
         ply = model / "point_cloud" / f"iteration_{chosen}" / "point_cloud.ply"
         header = ply_header(ply)
         missing = GAUSSIAN_PROPS - set(header["vertex_props"])
         if "face" in header["elements"] or missing:
-            raise ValueError("선택한 파일은 학습된 Gaussian이 아닙니다 (메시이거나 속성이 누락됨).")
+            raise ValueError(
+                "선택한 파일은 학습된 Gaussian이 아닙니다 (메시이거나 속성이 누락됨)."
+            )
         count = header["elements"].get("vertex", 0)
         if not count:
             raise ValueError("학습 결과에 Gaussian이 없습니다.")
         cameras = self._cameras(model, source)
         return {
-            "model": str(model), "source": str(source), "ply": str(ply),
-            "iterations": iterations, "iteration": chosen, "gaussians": count,
-            "ply_bytes": ply.stat().st_size, "cameras": cameras,
+            "model": str(model),
+            "source": str(source),
+            "ply": str(ply),
+            "iterations": iterations,
+            "iteration": chosen,
+            "gaussians": count,
+            "ply_bytes": ply.stat().st_size,
+            "cameras": cameras,
             "target": self._scene_center(source, cameras),
         }
 
@@ -177,12 +220,23 @@ class GaussianRemoteRenderingProvider(RenderingProvider):
     def render(self, client, camera):
         from studio.gaussian_protocol import camera_message
 
-        view = np.asarray(camera["view"], dtype=np.float64).reshape(4, 4).T  # column-major in
+        view = (
+            np.asarray(camera["view"], dtype=np.float64).reshape(4, 4).T
+        )  # column-major in
         width, height = int(camera["width"]), int(camera["height"])
         mode = int(camera.get("mode_index", 0))
-        message = camera_message(view, width, height, float(camera["fovy"]),
-                                 float(camera.get("znear", 0.01)), float(camera.get("zfar", 1000.0)),
-                                 render_mode=mode, scaling_modifier=float(camera.get("scaling", 1.0)))
+        message = camera_message(
+            view,
+            width,
+            height,
+            float(camera["fovy"]),
+            float(camera.get("znear", 0.01)),
+            float(camera.get("zfar", 1000.0)),
+            render_mode=mode,
+            scaling_modifier=float(camera.get("scaling", 1.0)),
+        )
+        if camera.get("background") is not None:
+            message["background"] = camera["background"]
         rgb, _, metrics = client.request(message)
         return rgb, metrics
 

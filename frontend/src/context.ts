@@ -12,6 +12,7 @@ export type Selection =
 
 /** Everything a stage screen needs from the application shell. */
 export interface StageCtx {
+  settings?: import("./TaskSettings").SettingsBundle;
   project: Project;
   health: Health | null;
   base: string;
@@ -31,7 +32,9 @@ export interface StageCtx {
   select: (s: Selection) => void;
 }
 
-export const fmt = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString("ko-KR"));
+export const fmt = (n: number | null | undefined) =>
+  n == null ? "—" : n.toLocaleString("ko-KR");
 export const gb = (bytes: number) => (bytes / 1024 ** 3).toFixed(1) + " GB";
-export const mb = (bytes: number) => (bytes >= 1024 ** 3 ? gb(bytes) : (bytes / 1024 ** 2).toFixed(1) + " MB");
+export const mb = (bytes: number) =>
+  bytes >= 1024 ** 3 ? gb(bytes) : (bytes / 1024 ** 2).toFixed(1) + " MB";
 export const reviewed = (status: string) => ["approved", "manual", "skipped"].includes(status);

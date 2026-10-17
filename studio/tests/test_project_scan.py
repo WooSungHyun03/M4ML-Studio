@@ -19,25 +19,57 @@ def tree_hash(root: Path):
 def ply(path: Path, vertices=3, faces=1, colors=True, props=()):
     """Minimal binary PLY with the header elements the scanner reads."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["ply", "format binary_little_endian 1.0", f"element vertex {vertices}", "property float x", "property float y", "property float z"]
+    lines = [
+        "ply",
+        "format binary_little_endian 1.0",
+        f"element vertex {vertices}",
+        "property float x",
+        "property float y",
+        "property float z",
+    ]
     lines += [f"property float {p}" for p in props]
     if colors:
         lines += ["property uchar red", "property uchar green", "property uchar blue"]
     if faces:
         lines += [f"element face {faces}", "property list uchar int vertex_indices"]
     lines.append("end_header")
-    path.write_bytes(("\n".join(lines) + "\n").encode() + b"\0" * 64)
+    import struct
+
+    payload = b"".join(
+        struct.pack("<fff", float(i % 3), float(i // 3), 0.0)
+        + b"\0" * (4 * len(props))
+        + (bytes([255, 100, 40]) if colors else b"")
+        for i in range(vertices)
+    )
+    if faces:
+        payload += b"".join(struct.pack("<Biii", 3, 0, 1, 2) for _ in range(faces))
+    path.write_bytes(("\n".join(lines) + "\n").encode() + payload)
 
 
-def training_output(scene: Path, centres_offset=0.0, iterations=(30000,), checkpoints=()):
+def training_output(
+    scene: Path, centres_offset=0.0, iterations=(30000,), checkpoints=()
+):
     """2DGS output folder whose cameras.json matches the fixture poses (centre = -Rᵀt)."""
     out = scene / "output"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "cfg_args").write_text(f"Namespace(source_path='{scene}', model_path='{out}')")
-    cams = [{"id": i - 1, "img_name": f"{i:06d}", "position": [-i * 0.1 + centres_offset, 0.0, 0.0]} for i in range(1, 4)]
+    (out / "cfg_args").write_text(
+        f"Namespace(source_path='{scene}', model_path='{out}')"
+    )
+    cams = [
+        {
+            "id": i - 1,
+            "img_name": f"{i:06d}",
+            "position": [-i * 0.1 + centres_offset, 0.0, 0.0],
+        }
+        for i in range(1, 4)
+    ]
     (out / "cameras.json").write_text(json.dumps(cams))
     for it in iterations:
-        ply(out / f"point_cloud/iteration_{it}/point_cloud.ply", vertices=10, faces=0, colors=False, props=("objectmark",))
+        from test_result_artifacts import gaussian
+
+        target = out / f"point_cloud/iteration_{it}/point_cloud.ply"
+        target.parent.mkdir(parents=True)
+        gaussian(target)
     for c in checkpoints:
         (out / f"chkpnt{c}.pth").write_bytes(b"PK\x03\x04" + b"\0" * 32)
     return out
@@ -109,11 +141,12 @@ class ProjectScanTests(unittest.TestCase):
         self.assertTrue(any("일치하지 않아" in p for p in r["problems"]))
         self.assertFalse(any("함께 열 수" in x for x in r["recommendation"]["reasons"]))
 
-    def test_checkpoint_only_is_resumable(self):
+    def test_checkpoint_without_execution_identity_is_not_assumed_resumable(self):
         scene = fixture_scene(self.root)
         training_output(scene, iterations=(), checkpoints=(2500, 5000))
         r = self.scan()
-        self.assertEqual(r["recommendation"]["stage"], "train_resume")
+        self.assertEqual(r["recommendation"]["stage"], "sam")
+        self.assertFalse(r["training"][0]["resume_compatible"])
 
     def test_finished_training_without_mesh_recommends_mesh_extraction(self):
         scene = fixture_scene(self.root)
@@ -125,7 +158,7 @@ class ProjectScanTests(unittest.TestCase):
         ply(self.root / "cloud.ply", faces=0)
         r = self.scan()
         self.assertEqual(r["recommendation"]["stage"], "view")
-        bad = next(m for m in r["meshes"] if m["path"] == "cloud.ply")
+        bad = next(m for m in r["artifacts"] if m["path"] == "cloud.ply")
         self.assertFalse(bad["valid"])
 
     def test_empty_folder_has_no_start_stage(self):

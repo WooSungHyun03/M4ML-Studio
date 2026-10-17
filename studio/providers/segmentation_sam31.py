@@ -47,7 +47,9 @@ class Sam31SegmentationProvider(SegmentationProvider):
 
     def _run(self, ctx, request, preview):
         if not self.checkpoint().is_file():
-            raise ValueError("객체 선택 모델 파일을 찾을 수 없습니다. 설정 › 고급 정보에서 경로를 확인하세요.")
+            raise ValueError(
+                "객체 선택 모델 파일을 찾을 수 없습니다. 설정 › 고급 정보에서 경로를 확인하세요."
+            )
         args = {
             "scene": request["scene"],
             "checkpoint": str(self.checkpoint()),
@@ -57,8 +59,11 @@ class Sam31SegmentationProvider(SegmentationProvider):
             "output": str(Path(request["output"])),
             "preview": preview,
             "radius": request.get("radius"),
+            "parameters": request.get("parameters", {}),
         }
-        req = Path(request["output"]).parent / ("predict_request.json" if preview else "propagate_request.json")
+        req = Path(request["output"]).parent / (
+            "predict_request.json" if preview else "propagate_request.json"
+        )
         atomic_json(req, args)
         ctx.python(["-m", "studio.sam31", str(req)])
         return json.loads((Path(request["output"]) / "masks.json").read_text())

@@ -19,7 +19,7 @@ def linear_to_srgb(rgb):
     )
 
 
-def check_glb_resources(path):
+def check_glb_resources(path, *, vertex_colors_only=False):
     raw = Path(path).read_bytes()
     if len(raw) < 20 or raw[:4] != b"glTF":
         raise ValueError("GLB 파일 헤더가 유효하지 않습니다.")
@@ -27,6 +27,19 @@ def check_glb_resources(path):
     if kind != 0x4E4F534A or length > len(raw) - 20:
         raise ValueError("GLB JSON 영역이 유효하지 않습니다.")
     tree = json.loads(raw[20 : 20 + length])
+    if vertex_colors_only and tree.get("textures"):
+        raise ValueError(
+            "텍스처 GLB는 현재 색상을 보존해 가져올 수 없습니다. 정점 색상을 포함한 PLY·GLB로 내보내세요."
+        )
+    if vertex_colors_only:
+        for material in tree.get("materials", []):
+            factor = material.get("pbrMetallicRoughness", {}).get(
+                "baseColorFactor", [1, 1, 1, 1]
+            )
+            if factor != [1, 1, 1, 1]:
+                raise ValueError(
+                    "재질 색상·투명도가 적용된 GLB는 현재 보존해 가져올 수 없습니다. 재질을 정점 색상에 적용한 PLY·GLB로 내보내세요."
+                )
     for entry in tree.get("buffers", []) + tree.get("images", []):
         uri = entry.get("uri")
         if uri and not uri.startswith("data:"):

@@ -74,10 +74,19 @@ def run_job(job_id):
     store.job_update(job_id, pid=os.getpid(), message="작업을 준비하고 있습니다.")
     output = root / "runs" / job_id
     output.mkdir(parents=True)
+    atomic_json(output / "execution_request.json",request)
+    atomic_json(
+        output / "execution_settings.json", request.get("settings_snapshot", {})
+    )
     log = root / "logs" / (job_id + ".log")
     lock = None
-    capability = {"colmap": "camera", "preview": "segmentation", "sam": "segmentation",
-                  "train": "training", "mesh": "mesh"}.get(stage)
+    capability = {
+        "colmap": "camera",
+        "preview": "segmentation",
+        "sam": "segmentation",
+        "train": "training",
+        "mesh": "mesh",
+    }.get(stage)
     try:
         if capability is None:
             raise ValueError("알 수 없는 작업입니다.")
@@ -103,17 +112,34 @@ def run_job(job_id):
                                  message="마스크를 생성하고 있습니다.")
 
         env = os.environ.copy()
-        env.update(CUDA_VISIBLE_DEVICES=device, OMP_NUM_THREADS="4", PYTHONUNBUFFERED="1")
-        ctx = JobContext(root=root, output=output, log=log, env=env, cancel=cancel,
-                         progress=progress, cwd=ROOT, on_line=on_line)
+        env.update(
+            CUDA_VISIBLE_DEVICES=device, OMP_NUM_THREADS="4", PYTHONUNBUFFERED="1"
+        )
+        ctx = JobContext(
+            root=root,
+            output=output,
+            log=log,
+            env=env,
+            cancel=cancel,
+            progress=progress,
+            cwd=ROOT,
+            on_line=on_line,
+        )
 
         if stage == "colmap":
             if request.get("component") is not None:
                 progress("선택한 재구성 그룹의 렌즈 왜곡을 보정하고 있습니다.")
-                report = engine.select_component(ctx, root / "input/original", (root / p["scene"]).parent,
-                                                 output / "colmap", request["component"])
+                report = engine.select_component(
+                    ctx,
+                    root / "input/original",
+                    (root / p["scene"]).parent,
+                    output / "colmap",
+                    request["component"],
+                )
             else:
-                report = engine.reconstruct(ctx, root / "input/original", output / "colmap", request)
+                report = engine.reconstruct(
+                    ctx, root / "input/original", output / "colmap", request
+                )
             scene = (output / "colmap/scene").relative_to(root).as_posix()
 
             def finish(doc):
@@ -123,6 +149,7 @@ def run_job(job_id):
                 doc.pop("preview", None)
                 doc.pop("prompt", None)
                 doc.pop("training_partial", None)
+                doc.pop("active_gaussian_artifact", None)
                 doc["target_confirmed"] = False
                 invalidate(doc, "colmap")
                 doc["stages"].update(colmap="completed", sam="waiting_for_user")
@@ -130,7 +157,9 @@ def run_job(job_id):
             store.update(project_id, finish)
 
         elif stage in {"preview", "sam"}:
-            progress("객체 선택 모델을 불러오고 등록 사진의 마스크를 계산하고 있습니다.")
+            progress(
+                "객체 선택 모델을 불러오고 등록 사진의 마스크를 계산하고 있습니다."
+            )
             seg_request = {
                 "scene": str(root / p["scene"]),
                 "reference": request["reference"],
@@ -138,8 +167,11 @@ def run_job(job_id):
                 "labels": request["labels"],
                 "output": str(output / "predictions"),
                 "radius": request.get("radius"),
+                "parameters": request.get("parameters", {}),
             }
-            results = (engine.predict if stage == "preview" else engine.propagate)(ctx, seg_request)
+            results = (engine.predict if stage == "preview" else engine.propagate)(
+                ctx, seg_request
+            )
 
             def finish(doc):
                 if stage == "preview" and request.get("session_id"):
@@ -193,25 +225,49 @@ def run_job(job_id):
                     stats = validate_mask(root / item["path"], image.size)
                 if stats["sha256"] != item["sha256"]:
                     raise ValueError("마스크 파일이 변경되었습니다. 다시 확인하세요.")
-                shutil.copyfile(root / item["path"], mask_dir / (Path(name).stem + ".png"))
+                shutil.copyfile(
+                    root / item["path"], mask_dir / (Path(name).stem + ".png")
+                )
                 fingerprints[name] = stats["sha256"]
             from studio.artifacts import dataset_identity, require_resume_identity
 
-            fingerprint = {"dataset": dataset_identity(scene, names), "masks": fingerprints, "scene": p["scene"],
-                           "iterations": request["iterations"], "resolution": request.get("resolution", -1)}
+            fingerprint = {
+                "dataset": dataset_identity(scene, names),
+                "masks": fingerprints,
+                "scene": p["scene"],
+                "iterations": request["iterations"],
+                "resolution": request.get("resolution", -1),
+                "settings": request.get("settings_snapshot"),
+            }
             partial = p.get("training_partial")
             if request.get("resume"):
-                require_resume_identity(partial.get("fingerprint") if partial else None, fingerprint)
+                require_resume_identity(
+                    partial.get("fingerprint") if partial else None, fingerprint
+                )
                 training = root / partial["path"]
                 request["resume_iteration"] = partial["checkpoint"]
-                offset.update(iteration=partial["checkpoint"], total=request["iterations"])
+                offset.update(
+                    iteration=partial["checkpoint"], total=request["iterations"]
+                )
                 with log.open("a") as stream:
-                    stream.write(json.dumps({"m4ml_resume": {
-                        "offset": partial["checkpoint"], "total": request["iterations"],
-                        "previous_job": Path(partial["path"]).parts[1]}}) + "\n")
+                    stream.write(
+                        json.dumps(
+                            {
+                                "m4ml_resume": {
+                                    "offset": partial["checkpoint"],
+                                    "total": request["iterations"],
+                                    "previous_job": Path(partial["path"]).parts[1],
+                                }
+                            }
+                        )
+                        + "\n"
+                    )
             else:
                 training = output / "training"
             atomic_json(output / "input_fingerprint.json", fingerprint)
+            atomic_json(
+                output / "execution_settings.json", request.get("settings_snapshot", {})
+            )
 
             def remember_partial(doc_path=training):
                 found = provider("training").checkpoints(doc_path)
@@ -229,9 +285,16 @@ def run_job(job_id):
             from plyfile import PlyData
             import numpy as np
 
-            ply = training / "point_cloud" / f"iteration_{request['iterations']}" / "point_cloud.ply"
+            ply = (
+                training
+                / "point_cloud"
+                / f"iteration_{request['iterations']}"
+                / "point_cloud.ply"
+            )
             vertices = PlyData.read(ply)["vertex"]
-            if not len(vertices) or not all(np.isfinite(vertices[k]).all() for k in ("x", "y", "z")):
+            if not len(vertices) or not all(
+                np.isfinite(vertices[k]).all() for k in ("x", "y", "z")
+            ):
                 raise ValueError("학습 결과에 유효한 가우시안이 없습니다.")
 
             def finish(doc):
@@ -246,6 +309,7 @@ def run_job(job_id):
                     "ply_sha256": sha256(ply),
                     "resumed_from": result.get("resumed_from"),
                     "engine": provider("training").key,
+                    "settings_snapshot": request.get("settings_snapshot"),
                 }
                 doc["stages"]["train"] = "completed"
 
@@ -255,19 +319,36 @@ def run_job(job_id):
             progress("학습 결과를 렌더링하고 색상이 있는 3D 모델을 만들고 있습니다.")
             training = root / p["training"]["path"]
             (output / "mesh").mkdir(parents=True, exist_ok=True)
-            report = engine.extract(ctx, root / p["scene"], training, p["training"]["iterations"],
-                                    output / "mesh", request)
+            report = engine.extract(
+                ctx,
+                root / p["scene"],
+                training,
+                p["training"]["iterations"],
+                output / "mesh",
+                request,
+            )
 
             def finish(doc):
-                doc["mesh"] = {"path": str((output / "mesh").relative_to(root)), **report,
-                               "iterations": p["training"]["iterations"], "engine": engine.key}
+                doc["mesh"] = {
+                    "path": str((output / "mesh").relative_to(root)),
+                    **report,
+                    "iterations": p["training"]["iterations"],
+                    "engine": engine.key,
+                    "settings_snapshot": request.get("settings_snapshot"),
+                }
                 doc["stages"]["mesh"] = "completed"
 
             store.update(project_id, finish)
 
         if cancel.is_set():
             raise Cancelled("작업이 취소되었습니다.")
-        store.job_update(job_id, state="completed", ended=now(), message="결과 파일 검증을 완료했습니다.", exit_code=0)
+        store.job_update(
+            job_id,
+            state="completed",
+            ended=now(),
+            message="결과 파일 검증을 완료했습니다.",
+            exit_code=0,
+        )
     except BaseException as exc:
         import traceback
 
@@ -301,11 +382,18 @@ def run_job(job_id):
         # the next unattended stage and starts only after the GPU lock is released.
         from studio.dispatch import launch
 
-        launch(store, project_id, "mesh", {
-            "gpu": request["gpu"],
-            "gpu_uuid": request.get("gpu_uuid", str(request["gpu"])),
-            "mesh_res": request.get("mesh_res", 1024),
-        })
+        launch(
+            store,
+            project_id,
+            "mesh",
+            {
+                "gpu": request["gpu"],
+                "gpu_uuid": request.get("gpu_uuid", str(request["gpu"])),
+                **request.get(
+                    "mesh_request", {"mesh_res": request.get("mesh_res", 1024)}
+                ),
+            },
+        )
 
 
 if __name__ == "__main__":

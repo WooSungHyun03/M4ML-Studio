@@ -72,7 +72,11 @@ def validate_camera_message(message, mode_count=7):
 
     for name in ("view_matrix", "view_projection_matrix"):
         values = message.get(name)
-        if not isinstance(values, list) or len(values) != 16 or not all(finite(v) for v in values):
+        if (
+            not isinstance(values, list)
+            or len(values) != 16
+            or not all(finite(v) for v in values)
+        ):
             raise ValueError("카메라 행렬은 유한한 값 16개여야 합니다.")
     for name in ("fov_x", "fov_y"):
         value = message.get(name)
@@ -81,6 +85,14 @@ def validate_camera_message(message, mode_count=7):
     near, far = message.get("z_near"), message.get("z_far")
     if not finite(near) or not finite(far) or not 0 < near < far:
         raise ValueError("카메라 원거리 절단면은 근거리 절단면보다 커야 합니다.")
+    if message.get("background") is not None:
+        color = message["background"]
+        if (
+            not isinstance(color, list)
+            or len(color) != 3
+            or any(not finite(v) or not 0 <= v <= 1 for v in color)
+        ):
+            raise ValueError("렌더링 배경색은 0–1 범위의 RGB여야 합니다.")
     scaling = message.get("scaling_modifier", 1.0)
     mode = message.get("render_mode", 0)
     if not finite(scaling) or not 0 <= scaling <= 10:

@@ -100,11 +100,23 @@ def validate_mask(path, size):
 
 
 def segment(
-    scene, checkpoint, reference, points, labels, output, *, preview=False, radius=None
+    scene,
+    checkpoint,
+    reference,
+    points,
+    labels,
+    output,
+    *,
+    preview=False,
+    radius=None,
+    parameters=None,
 ):
     import torch
     from sam3.model_builder import build_sam3_multiplex_video_predictor
 
+    from studio.task_settings import validate
+
+    parameters = validate("segmentation", parameters or {})
     scene, checkpoint, output = Path(scene), Path(checkpoint), Path(output)
     names = validate_scene(scene)
     if (
@@ -121,7 +133,9 @@ def segment(
         or torch.__version__.split("+")[0] != "2.5.1"
         or torch.version.cuda != "11.8"
     ):
-        raise RuntimeError("검증된 GPU 처리 런타임이 필요합니다. 설정 › 처리 장치를 확인하세요.")
+        raise RuntimeError(
+            "검증된 GPU 처리 런타임이 필요합니다. 설정 › 처리 장치를 확인하세요."
+        )
     output.mkdir(parents=True, exist_ok=False)
     order = ordered_views(scene)
     sizes = {}
@@ -171,6 +185,7 @@ def segment(
             "labels": labels,
             "checkpoint_sha256": sha256(checkpoint),
             "preview": preview,
+            "parameters": parameters,
         },
     )
     predictor = build_sam3_multiplex_video_predictor(
@@ -181,6 +196,8 @@ def segment(
         warm_up=False,
         async_loading_frames=False,
     )
+    predictor.model.fill_hole_area = parameters["fill_hole_area"]
+    predictor.model.sprinkle_removal_area = parameters["sprinkle_removal_area"]
     # Fail closed if the permissive upstream checkpoint loader left any parameters uninitialized.
     state = torch.load(checkpoint, weights_only=True, map_location="cpu", mmap=True)
     state = state.get("model", state)
@@ -199,7 +216,9 @@ def segment(
             canvas.save(Path(directory) / f"{v['frame_index']:06d}.png")
         session = predictor.handle_request(
             dict(
-                type="start_session", resource_path=directory, offload_video_to_cpu=True
+                type="start_session",
+                resource_path=directory,
+                offload_video_to_cpu=parameters["offload_video_to_cpu"],
             )
         )["session_id"]
 
@@ -227,7 +246,7 @@ def segment(
                 warnings = []
                 if view["discontinuity"]:
                     warnings.append("촬영 시점의 간격이 큽니다. 마스크를 확인하세요.")
-                if stats["coverage"] > 0.98:
+                if stats["coverage"] > parameters["coverage_warning"]:
                     warnings.append("마스크가 사진 대부분을 덮습니다.")
                 report[view["name"]] = {
                     "valid": True,

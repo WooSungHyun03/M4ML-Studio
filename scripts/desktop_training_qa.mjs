@@ -80,37 +80,20 @@ try {
     );
   } else {
     await q.click(".stage-tab", "3D 재구성");
-    await q.waitFor(
-      '!!document.querySelector(".insp-stage input[type=number]")',
-    );
-    await q.click("summary", "고급 설정");
-    await q.click('input[type="number"]');
-    await q.send("Input.dispatchKeyEvent", {
-      type: "keyDown",
-      key: "a",
-      code: "KeyA",
-      modifiers: 2,
-      windowsVirtualKeyCode: 65,
-    });
-    await q.send("Input.dispatchKeyEvent", {
-      type: "keyUp",
-      key: "a",
-      code: "KeyA",
-      modifiers: 2,
-      windowsVirtualKeyCode: 65,
-    });
-    await q.send("Input.insertText", { text: "100" });
-    // Select through its real change event; no engine API call substitutes the UI.
-    await q.evaluate(`(() => {
-    const label = [...document.querySelectorAll("label")].find(e => e.textContent.includes("3D 모델 해상도"));
-    const select = label.querySelector("select"); select.value = "256"; select.dispatchEvent(new Event("change",{bubbles:true})); return true;
-  })()`);
-    check(
-      "test-only settings",
-      await q.evaluate(
-        'document.querySelector("input[type=number]").value === "100"',
-      ),
-    );
+    await q.click('.toolbar button','세부 설정');
+    await q.waitFor('!!document.querySelector(".task-settings input[type=number]")');
+    async function fillSetting(label,text){
+      const selector=await q.evaluate(`(()=>{const e=[...document.querySelectorAll('.task-settings label')].find(e=>e.textContent.includes(${JSON.stringify(label)}));if(!e)return null;const i=e.querySelector('input');i.setAttribute('data-native-test-input','true');return '[data-native-test-input=true]'})()`);
+      if(!selector)throw Error('Setting missing: '+label);
+      await q.click(selector);await q.send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65});await q.send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65});await q.send('Input.insertText',{text});
+      await q.evaluate(`document.querySelector(${JSON.stringify(selector)}).removeAttribute('data-native-test-input');true`);
+    }
+    await fillSetting('학습 횟수','100');await fillSetting('알파 Polarization 가중치','0.45');await q.click('.task-settings button','저장');
+    await q.waitFor(`fetch('/api/projects/${project}/task-settings').then(r=>r.json()).then(s=>s.training.values.iterations===100)`);
+    await q.click('.task-settings nav button','3D 모델 생성');await fillSetting('생성 해상도','256');await q.click('.task-settings button','저장');
+    await q.waitFor(`fetch('/api/projects/${project}/task-settings').then(r=>r.json()).then(s=>s.mesh.values.mesh_res===256)`);
+    check('test-only persisted schema settings',true);
+    await q.click('.task-settings button[aria-label="세부 설정 닫기"]');
     await q.waitFor(
       '[...document.querySelectorAll(".toolbar button")].some(b => b.textContent.includes("새로 학습") && !b.disabled)',
       60000,
@@ -168,7 +151,8 @@ try {
       "confirmed100 request actually submitted by UI",
       request.confirmed === true &&
         request.iterations === 100 &&
-        request.mesh_res === 256,
+        request.parameters?.lambda_pa === 0.45 &&
+        request.mesh_request?.parameters?.mesh_res === 256,
     );
     check(
       "new training job, not previous completed result",

@@ -481,10 +481,22 @@ def complete_import(project_id: str):
         # Start camera registration automatically only when GPU acceleration is really
         # available; a CPU run is never started without the user's explicit choice.
         engine = camera_engine_status()
-        gpus = health()["gpus"] if engine.get("gpu") else []
+        from studio.task_settings import effective
+
+        gpus = (
+            health()["gpus"]
+            if engine.get("gpu") and effective(p, "camera")["use_gpu"]
+            else []
+        )
         if not gpus:
-            store.update(project_id, lambda doc: doc["stages"].update({"colmap": "waiting_for_user"}))
-            return {"job_id": None, "message": "GPU 가속 카메라 정합을 사용할 수 없습니다. 카메라 정합 단계에서 실행 방식을 선택하세요."}
+            store.update(
+                project_id,
+                lambda doc: doc["stages"].update({"colmap": "waiting_for_user"}),
+            )
+            return {
+                "job_id": None,
+                "message": "GPU 가속 카메라 정합을 사용할 수 없습니다. 카메라 정합 단계에서 실행 방식을 선택하세요.",
+            }
         from studio import segmentation_session
 
         segmentation_session.release(gpus[0].get("uuid", "0"))
@@ -492,8 +504,12 @@ def complete_import(project_id: str):
 
         live_render.release(gpus[0].get("uuid", "0"))
         return {
-            "job_id": launch(store, project_id, "colmap", {
-                "matching": "exhaustive", "gpu": gpus[0]["index"], "gpu_uuid": gpus[0].get("uuid", "0")})
+            "job_id": launch(
+                store,
+                project_id,
+                "colmap",
+                {"gpu": gpus[0]["index"], "gpu_uuid": gpus[0].get("uuid", "0")},
+            )
         }
 
 
@@ -719,6 +735,7 @@ class FolderOpen(FolderPath):
     masks: str | None = None
     use_training: bool = True
     use_mesh: bool = True
+    artifacts: list[str] | None = Field(default=None, max_length=64)
 
 
 def _folder(path):
@@ -761,36 +778,93 @@ def open_folder(body: FolderOpen):
     existing = (scan.get("manifest") or {}).get("id")
     if existing:
         try:
-            return {"project": store.get(existing), "reused": ["기존 M4ML Studio 프로젝트"], "skipped": []}
+            return {
+                "project": store.get(existing),
+                "reused": ["기존 M4ML Studio 프로젝트"],
+                "skipped": [],
+            }
         except (FileNotFoundError, ValueError):
             pass
     rec = scan["recommendation"]["stage"]
     if rec is None:
         raise ValueError(scan["problems"][0])
     sparse = body.sparse or scan["selected_sparse"]
-    masks_ok = bool(scan.get("masks") and scan["masks"].get("complete")) and not body.sparse
-    mesh_only = not sparse and not scan.get("images") and scan["meshes"]
-    mode = "mesh" if mesh_only else ("colmap_masks" if sparse and masks_ok else "colmap" if sparse else "images")
+    masks_ok = (
+        bool(scan.get("masks") and scan["masks"].get("complete")) and not body.sparse
+    )
+    artifact_only = (
+        not sparse
+        and not scan.get("images")
+        and any(a["valid"] for a in scan["artifacts"])
+    )
+    mesh_only = artifact_only
+    chosen = body.artifacts
+    if chosen is None:
+        # Preserve automatic dataset-training reuse; independent results are selectable explicitly.
+        chosen = (
+            [
+                next(
+                    a["path"]
+                    for a in scan["artifacts"]
+                    if a["valid"] and a["kind"] == kind
+                )
+                for kind in ("mesh", "gaussian")
+                if any(a["valid"] and a["kind"] == kind for a in scan["artifacts"])
+            ]
+            if artifact_only
+            else []
+        )
+    candidates = {a["path"]: a for a in scan["artifacts"] if a["valid"]}
+    if any(path not in candidates for path in chosen):
+        raise ValueError("분석에서 검증된 결과 파일을 선택하세요.")
+    mode = (
+        "mesh"
+        if mesh_only
+        else (
+            "colmap_masks" if sparse and masks_ok else "colmap" if sparse else "images"
+        )
+    )
     p = store.create((body.name or folder.name)[:120] or "새 프로젝트")
     pid, root = p["id"], store.path(p["id"])
     reused, skipped = [], list(scan["problems"])
-    store.update(pid, lambda doc: doc.update(input_mode=mode, source_folder=str(folder)))
+    store.update(
+        pid, lambda doc: doc.update(input_mode=mode, source_folder=str(folder))
+    )
     try:
         if mesh_only:
-            _import_mesh(pid, folder / scan["meshes"][0]["path"], None)
-            reused.append("3D 모델 " + scan["meshes"][0]["path"])
+            if not chosen:
+                raise ValueError("열 결과를 한 개 이상 선택하세요.")
         elif sparse:
             from studio.colmap_import import commit_import
 
-            options = {"with_masks": masks_ok, "sparse": sparse,
-                       "images": body.images or next((x.get("images_dir") for x in scan["sparse"] if x["path"] == sparse), None),
-                       "masks": body.masks or (scan["masks"]["dir"] if masks_ok else None),
-                       "foreground": "white", "mask_channel": "gray", "normalize_masks": False, "skip_review": masks_ok}
+            options = {
+                "with_masks": masks_ok,
+                "sparse": sparse,
+                "images": body.images
+                or next(
+                    (
+                        x.get("images_dir")
+                        for x in scan["sparse"]
+                        if x["path"] == sparse
+                    ),
+                    None,
+                ),
+                "masks": body.masks or (scan["masks"]["dir"] if masks_ok else None),
+                "foreground": "white",
+                "mask_channel": "gray",
+                "normalize_masks": False,
+                "skip_review": masks_ok,
+            }
             result = commit_import(root, options, source=folder)
             if not result["committed"]:
                 audit = result["audit"]
-                raise ValueError("기존 카메라 정합 결과를 가져오지 못했습니다: " + "; ".join(
-                    (audit.get("blocking_errors") or []) + [e["error"] for e in audit.get("mask_errors") or []][:5]))
+                raise ValueError(
+                    "기존 카메라 정합 결과를 가져오지 못했습니다: "
+                    + "; ".join(
+                        (audit.get("blocking_errors") or [])
+                        + [e["error"] for e in audit.get("mask_errors") or []][:5]
+                    )
+                )
 
             def finish(doc):
                 for key in ("scene", "images", "masks", "colmap_report"):
@@ -808,7 +882,9 @@ def open_folder(body: FolderOpen):
                         m.update(status="skipped", review_source="existing_folder_masks")
 
             store.update(pid, finish)
-            reused.append(f"카메라 정합 결과 ({result['colmap_report']['registered']}장 등록)")
+            reused.append(
+                f"카메라 정합 결과 ({result['colmap_report']['registered']}장 등록)"
+            )
             if masks_ok:
                 reused.append(f"객체 마스크 {len(result['masks'])}장")
             if masks_ok and body.use_training:
@@ -817,25 +893,60 @@ def open_folder(body: FolderOpen):
             images_dir = folder / (body.images or scan["images"]["dir"])
             count = 0
             for f in sorted(images_dir.iterdir()):
-                if f.suffix.lower() not in {".jpg", ".jpeg", ".png", ".tif", ".tiff"} or not f.is_file():
+                if (
+                    f.suffix.lower() not in {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
+                    or not f.is_file()
+                ):
                     continue
                 doc = store.get(pid)
                 try:
-                    item = import_image(root, f.read_bytes(), f.name, len(doc["images"]) + 1, doc["images"])
+                    item = import_image(
+                        root,
+                        f.read_bytes(),
+                        f.name,
+                        len(doc["images"]) + 1,
+                        doc["images"],
+                    )
                     store.update(pid, lambda d, item=item: d["images"].append(item))
                     count += 1
-                except (ValueError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
-                    store.update(pid, lambda d, n=f.name, e=str(exc): d["import_errors"].append({"name": n, "error": e}))
+                except (
+                    ValueError,
+                    OSError,
+                    Image.DecompressionBombError,
+                    Image.DecompressionBombWarning,
+                ) as exc:
+                    store.update(
+                        pid,
+                        lambda d, n=f.name, e=str(exc): d["import_errors"].append(
+                            {"name": n, "error": e}
+                        ),
+                    )
             reused.append(f"사진 {count}장")
             if count >= 2:
                 started = complete_import(pid)
                 if isinstance(started, dict) and started.get("job_id"):
                     reused.append("카메라 정합 자동 시작 (GPU)")
+        from studio.result_artifacts import import_result
+
+        for selected in dict.fromkeys(chosen):
+            record = import_result(store, pid, folder, candidates[selected])
+            reused.append(
+                ("독립 Gaussian " if record["kind"] == "gaussian" else "독립 메시 ")
+                + selected
+            )
     except Exception:
         store.update(pid, lambda doc: doc.update(open_folder_error=True))
         raise
-    store.update(pid, lambda doc: doc.update(folder_import={"reused": reused, "skipped": skipped,
-                                                             "recommendation": scan["recommendation"]}))
+    store.update(
+        pid,
+        lambda doc: doc.update(
+            folder_import={
+                "reused": reused,
+                "skipped": skipped,
+                "recommendation": scan["recommendation"],
+            }
+        ),
+    )
     out = store.get(pid)
     out["project_path"] = str(root)
     return {"project": out, "reused": reused, "skipped": skipped}
@@ -848,25 +959,44 @@ def _import_training(pid, folder, scan, skipped, use_mesh):
     import numpy as np
     from studio.doctor import sha256 as file_sha
 
-    candidates = [t for t in scan["training"] if t.get("valid") and t.get("dataset_match") == "yes"]
+    candidates = [
+        t
+        for t in scan["training"]
+        if t.get("valid") and t.get("dataset_match") == "yes"
+    ]
     if not candidates:
         return []
-    t = max(candidates, key=lambda t: (max(t.get("iterations") or [0]), max(t.get("checkpoints") or [0])))
+    t = max(
+        candidates,
+        key=lambda t: (
+            max(t.get("iterations") or [0]),
+            max(t.get("checkpoints") or [0]),
+        ),
+    )
     root = store.path(pid)
     src = folder / t["path"]
     dest = root / "runs" / f"imported-{uuid.uuid4()}" / "training"
     dest.mkdir(parents=True)
-    for name in ("cfg_args", "cameras.json", "input.ply"):
+    for name in ("cameras.json", "input.ply"):
         if (src / name).is_file():
             shutil.copyfile(src / name, dest / name)
+    from studio.result_artifacts import safe_model_config
+    (dest/'cfg_args').write_text(safe_model_config(src,source=root/store.get(pid)['scene'],target=dest))
     used = []
     if t.get("iterations"):
         last = t["iterations"][-1]
-        shutil.copytree(src / "point_cloud" / f"iteration_{last}", dest / "point_cloud" / f"iteration_{last}")
+        shutil.copytree(
+            src / "point_cloud" / f"iteration_{last}",
+            dest / "point_cloud" / f"iteration_{last}",
+        )
         ply = dest / "point_cloud" / f"iteration_{last}" / "point_cloud.ply"
         vertices = PlyData.read(ply)["vertex"]
-        if not len(vertices) or not all(np.isfinite(vertices[k]).all() for k in ("x", "y", "z")):
-            skipped.append("가져온 학습 결과에 유효한 가우시안이 없어 사용하지 않았습니다.")
+        if not len(vertices) or not all(
+            np.isfinite(vertices[k]).all() for k in ("x", "y", "z")
+        ):
+            skipped.append(
+                "가져온 학습 결과에 유효한 가우시안이 없어 사용하지 않았습니다."
+            )
             return []
 
         def finish(doc):
@@ -879,16 +1009,32 @@ def _import_training(pid, folder, scan, skipped, use_mesh):
 
         store.update(pid, finish)
         used.append(f"학습 결과 {last:,}회 (가우시안 {len(vertices):,}개)")
-        meshes = [m for m in scan["meshes"] if m.get("valid") and m.get("kind") == "ply" and m["path"].startswith(t["path"] + "/") and m.get("colors")]
+        meshes = [
+            m
+            for m in scan["meshes"]
+            if m.get("valid")
+            and m.get("kind") == "ply"
+            and m["path"].startswith(t["path"] + "/")
+            and m.get("colors")
+        ]
         if use_mesh and meshes:
             _import_mesh(pid, folder / meshes[0]["path"], last)
             used.append(f"3D 모델 ({meshes[0]['triangles']:,} 삼각형)")
+    elif t.get("checkpoints") and not t.get("resume_compatible"):
+        skipped.append(
+            t.get(
+                "note",
+                "외부 저장 지점의 실행 설정을 검증할 수 없어 새 학습이 필요합니다.",
+            )
+        )
     elif t.get("checkpoints"):
         from studio.artifacts import dataset_identity
 
         last = t["checkpoints"][-1]
         if last >= 30000:
-            skipped.append("저장 지점이 이미 기본 학습 횟수 이상이라 이어서 학습하지 않습니다.")
+            skipped.append(
+                "저장 지점이 이미 기본 학습 횟수 이상이라 이어서 학습하지 않습니다."
+            )
             return []
         current = store.get(pid)
         identity = dataset_identity(root / current["scene"], current["masks"])
@@ -921,12 +1067,16 @@ def _import_mesh(pid, path, iterations):
         import numpy as np
         from studio.mesh import glb_colors, linear_to_srgb, check_glb_resources
 
-        check_glb_resources(path)
+        check_glb_resources(path, vertex_colors_only=True)
         mesh = trimesh.load(path, force="mesh", process=False)
         colors = glb_colors(path)
         if colors is not None:
-            mesh.visual.vertex_colors = np.column_stack([
-                np.rint(np.clip(linear_to_srgb(colors), 0, 1) * 255).astype(np.uint8), np.full(len(colors), 255, np.uint8)])
+            if len(colors) != len(mesh.vertices):
+                raise ValueError("GLB 색상과 정점 수가 달라 안전하게 변환할 수 없습니다.")
+            # A glTF material creates TextureVisuals even with no textures. Setting
+            # vertex_colors on it is ignored by PLY export; replace the visual.
+            mesh.visual = trimesh.visual.ColorVisuals(mesh=mesh, vertex_colors=np.column_stack([
+                np.rint(np.clip(linear_to_srgb(colors), 0, 1) * 255).astype(np.uint8), np.full(len(colors), 255, np.uint8)]))
         mesh.export(work / "fuse_post.ply")
     report = provider("export").validate_and_preview(work / "fuse_post.ply", work)
 
@@ -938,6 +1088,30 @@ def _import_mesh(pid, path, iterations):
                                                          "skip_reason": "existing_valid_output"}
 
     store.update(pid, finish)
+
+
+@app.post("/api/projects/{project_id}/result-artifacts/{artifact_id}/activate")
+def activate_result(project_id: str, artifact_id: str):
+    with editable(project_id) as (p, root):
+        artifact = next(
+            (a for a in p.get("result_artifacts", []) if a["id"] == artifact_id), None
+        )
+        if artifact_id=='training' and p.get('training') and p.get('scene') and p['stages']['train']=='completed':artifact={'kind':'training'}
+        if not artifact:
+            raise ValueError("결과 파일을 찾지 못했습니다.")
+        from studio import live_render
+
+        live_render.release(project_id=project_id)
+
+        def change(doc):
+            if artifact['kind']=='training':doc.pop('active_gaussian_artifact',None)
+            elif artifact["kind"] == "gaussian":
+                doc["active_gaussian_artifact"] = artifact_id
+            else:
+                doc["mesh"] = artifact["mesh"]
+                doc["stages"]["mesh"] = "completed"
+
+        return store.update(project_id, change)
 
 
 @app.get("/api/projects/{project_id}/assets")
@@ -984,11 +1158,16 @@ class LiveFrame(BaseModel):
     zfar: float = Field(default=1000.0, gt=0)
     mode: str = Field(default="rgb", pattern="^[a-z]{2,16}$")
     encoding: str = Field(default="jpeg", pattern="^(jpeg|png)$")
+    background: list[float] | None = Field(default=None, min_length=3, max_length=3)
     quality: int = Field(default=88, ge=50, le=95)
     scaling: float = Field(default=1.0, ge=0.01, le=1.0)
 
     @model_validator(mode="after")
     def valid_clip_planes(self):
+        if self.background is not None and any(
+            not 0 <= v <= 1 for v in self.background
+        ):
+            raise ValueError("배경색은 0–1 범위여야 합니다.")
         if self.zfar <= self.znear:
             raise ValueError("카메라 원거리 절단면은 근거리 절단면보다 커야 합니다.")
         return self
@@ -1015,10 +1194,25 @@ def live_render_info(project_id: str, iteration: int | None = None):
     ext = provider("rendering").info()
     return {
         "available": True,
-        "model": {k: model[k] for k in ("iterations", "iteration", "gaussians", "ply_bytes", "cameras", "target")},
-        "training_running": bool((store.active(project_id) or {}).get("stage") in ("train", "mesh")),
+        "model": {
+            k: model[k]
+            for k in (
+                "iterations",
+                "iteration",
+                "gaussians",
+                "ply_bytes",
+                "cameras",
+                "target",
+            )
+        },
+        "artifact": bool(p.get("active_gaussian_artifact")),
+        "radius": model.get("radius", 1),
+        "training_running": bool(
+            (store.active(project_id) or {}).get("stage") in ("train", "mesh")
+        ),
         "session": session.status() if session else None,
-        "external_viewer": bool(ext.get("external_viewer")) and not ext.get("external_viewer_missing_libraries"),
+        "external_viewer": bool(ext.get("external_viewer"))
+        and not ext.get("external_viewer_missing_libraries"),
     }
 
 
@@ -1105,7 +1299,12 @@ def sparse_points(project_id: str, limit: int = 150000):
     return {"count": int(len(xyz)), "xyz": enc(xyz, np.float32), "rgb": enc(rgb, np.uint8), "cameras": cams}
 
 
-_HELP_DOCS = {"quickstart": "docs/QUICKSTART.md", "guide": "docs/USER_GUIDE.md", "troubleshooting": "docs/TROUBLESHOOTING.md", "shortcuts": "docs/SHORTCUTS.md"}
+_HELP_DOCS = {
+    "quickstart": "docs/QUICKSTART.md",
+    "guide": "docs/USER_GUIDE.md",
+    "troubleshooting": "docs/TROUBLESHOOTING.md",
+    "shortcuts": "docs/SHORTCUTS.md",
+}
 
 
 @app.get("/api/help/{name}")
@@ -1218,6 +1417,44 @@ def remove_image(project_id: str, name: str):
         return store.update(project_id, drop)
 
 
+class TaskSettings(Strict):
+    values: dict
+
+
+@app.get("/api/projects/{project_id}/task-settings")
+def task_settings_get(project_id: str):
+    from studio.task_settings import bundle
+
+    return bundle(store.get(project_id))
+
+
+@app.patch("/api/projects/{project_id}/task-settings/{group}")
+def task_settings_save(project_id: str, group: str, body: TaskSettings):
+    from studio.task_settings import GROUPS, save, bundle
+
+    if group not in GROUPS:
+        raise ValueError("지원하지 않는 설정 그룹입니다.")
+    # Serialize with job starts, but display-only changes are safe during GPU work.
+    root = store.path(project_id)
+    with (root / ".edit.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        p = store.get(project_id)
+        if group not in ("view", "review") and (
+            store.active(project_id)
+            or p.get("live_prompt", {}).get("status") == "pending"
+        ):
+            raise HTTPException(409, "실행이 끝난 뒤 설정을 저장하세요.")
+
+        def change(doc):
+            save(doc, group, body.values)
+            if group == "segmentation":
+                doc.pop("preview", None)
+                doc.get("live_prompt", {}).update(status="idle")
+
+        project = store.update(project_id, change)
+    return bundle(project)[group]
+
+
 @app.get("/api/projects/{project_id}/preflight")
 def training_preflight(project_id: str):
     return preflight(store.get(project_id), store.path(project_id))
@@ -1226,7 +1463,12 @@ def training_preflight(project_id: str):
 @app.post("/api/projects/{project_id}/jobs/{stage}")
 def start_job(project_id: str, stage: str, body: Job):
     with editable(project_id) as (p, root):
-        request = body.model_dump()
+        from studio.task_settings import execution
+
+        request = execution(p, stage, body.model_dump(), body.model_fields_set)
+        body = body.model_copy(
+            update={k: request[k] for k in Job.model_fields if k in request}
+        )
         if stage == "preview" and body.session_id:
             from studio.live_prompt import matches
 
@@ -1248,14 +1490,18 @@ def start_job(project_id: str, stage: str, body: Job):
                 camera = provider("camera")
                 if body.cpu_fallback:
                     if not body.confirmed:
-                        raise ValueError("GPU 없이 CPU로 카메라 정합을 실행하려면 확인이 필요합니다. 시간이 오래 걸릴 수 있습니다.")
+                        raise ValueError(
+                            "GPU 없이 CPU로 카메라 정합을 실행하려면 확인이 필요합니다. 시간이 오래 걸릴 수 있습니다."
+                        )
                     request["cpu_fallback_confirmed"] = True
                     camera.binary()  # any working engine
                 else:
                     devices = health()["gpus"]
                     gpu = next((g for g in devices if g["index"] == body.gpu), None)
                     if gpu is None:
-                        raise ValueError("GPU를 찾을 수 없어 가속 카메라 정합을 실행할 수 없습니다. CPU 실행을 선택할 수 있습니다.")
+                        raise ValueError(
+                            "GPU를 찾을 수 없어 가속 카메라 정합을 실행할 수 없습니다. CPU 실행을 선택할 수 있습니다."
+                        )
                     try:
                         camera.binary(require_cuda=True)
                     except RuntimeError as exc:
@@ -1300,7 +1546,9 @@ def start_job(project_id: str, stage: str, body: Job):
                 ) or any(l not in [0, 1] for l in body.labels):
                     raise ValueError("클릭 좌표 또는 종류가 유효하지 않습니다.")
                 if not checkpoint().is_file():
-                    raise ValueError("객체 선택 모델 파일을 찾을 수 없습니다. 설정 › 고급 정보에서 경로를 확인하세요.")
+                    raise ValueError(
+                        "객체 선택 모델 파일을 찾을 수 없습니다. 설정 › 고급 정보에서 경로를 확인하세요."
+                    )
                 request["checkpoint"] = str(checkpoint())
                 if stage == "sam":
                     if body.radius is not None and not p["masks"]:
@@ -1323,6 +1571,9 @@ def start_job(project_id: str, stage: str, body: Job):
                     partial = p.get("training_partial")
                     if not partial:
                         raise ValueError("이어서 학습할 저장 지점이 없습니다.")
+                    from studio.task_settings import require_resume_settings
+
+                    require_resume_settings(partial, request)
                     request["iterations"] = partial["iterations"]
                 if body.resolution == 0:
                     raise ValueError("사진 해상도가 유효하지 않습니다.")
@@ -1351,6 +1602,12 @@ def start_job(project_id: str, stage: str, body: Job):
             from studio import live_render
 
             live_render.release(request["gpu_uuid"])
+        store.update(
+            project_id,
+            lambda doc: doc.update(
+                execution_device={"index": body.gpu, "uuid": request.get("gpu_uuid")}
+            ),
+        )
         return {"job_id": launch(store, project_id, stage, request)}
 
 
@@ -1388,6 +1645,13 @@ def prompt_session(project_id: str, body: PromptSession):
 
 @app.post("/api/projects/{project_id}/prompt")
 def queue_prompt(project_id: str, body: Job):
+    # Settings saves and incoming clicks share the same per-project ordering boundary.
+    with (store.path(project_id)/'.edit.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX)
+        return _queue_prompt_locked(project_id,body)
+
+
+def _queue_prompt_locked(project_id: str, body: Job):
     from studio.live_prompt import schedule, matches
 
     p = store.get(project_id)
@@ -1422,8 +1686,10 @@ def queue_prompt(project_id: str, body: Job):
         for point in body.points
     ):
         raise ValueError("클릭 좌표가 유효하지 않습니다. 사진 안의 위치를 선택하세요.")
+    from studio.task_settings import execution
+
     request = {
-        **body.model_dump(),
+        **execution(p, "preview", body.model_dump(), body.model_fields_set),
         "status": "pending" if 1 in body.labels else "empty",
     }
 
@@ -1723,7 +1989,8 @@ _metric_cache = {}
 def training_metrics(project_id: str, job_id: str):
     """Full training curve parsed server-side from the real trainer logs (downsampled).
 
-    A resumed run continues the curve of the run it resumed from (absolute iterations)."""
+    A resumed run continues the curve of the run it resumed from (absolute iterations).
+    """
     job = store.job(job_id)
     if job["project_id"] != project_id or job["stage"] != "train":
         raise HTTPException(404, "학습 작업이 아닙니다.")

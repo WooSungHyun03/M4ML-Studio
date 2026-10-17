@@ -98,13 +98,20 @@ class _Session:
             raise SessionError(failure_description(fallback, self.log_path, self.log_start))
         return result
 
-    def predict(self, image, points, labels, output, timeout=120):
+    def predict(self, image, points, labels, output, timeout=120, parameters=None):
         with self.io:
             if self.proc.poll() is not None:
                 raise SessionError("객체 선택 엔진이 종료되었습니다.")
             self.counter += 1
-            request = {"op": "predict", "id": self.counter, "image": str(image),
-                       "points": points, "labels": labels, "output": str(output)}
+            request = {
+                "op": "predict",
+                "id": self.counter,
+                "image": str(image),
+                "points": points,
+                "labels": labels,
+                "output": str(output),
+                "parameters": parameters or {},
+            }
             self.proc.stdin.write(json.dumps(request) + "\n")
             self.proc.stdin.flush()
             reply = self._read(timeout)

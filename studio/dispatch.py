@@ -6,6 +6,10 @@ from studio.store import invalidate
 
 
 def launch(store, project_id, stage, request):
+    from studio.task_settings import execution
+
+    if "settings_snapshot" not in request:
+        request = execution(store.get(project_id), stage, request)
     job_id = store.new_job(project_id, stage, request)
     target_stage = "sam" if stage == "preview" else stage
 
