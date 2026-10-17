@@ -3,11 +3,11 @@
 당신은 시니어 데스크톱/로컬 AI 소프트웨어 엔지니어, UX 엔지니어, 3D 그래픽 엔지니어, 릴리스 엔지니어다. **기획안이 아니라 실제 작동하는 제품을 개발한다.** Ubuntu/Linux NVIDIA GPU 사용자가 다운로드하여 설치·사용할 수 있는 **M4ML Studio**를 완성하라.
 
 ## 0. 작업 환경과 이전 작업 보호
-- 작업 경로: `/home/m4ml/Desktop/Object-Aware`
+- 작업 경로: `<project-root>`
 - 기존 문서: `AGENTS.md`, `CODEX_PROMPT.md`, `docs/` 전체
 - 이번 추가 명세: `M4ML_STUDIO_RESUME_PROMPT.md`, `docs/M4ML_STUDIO_PRODUCT_SPEC.md`, `docs/M4ML_STUDIO_TECHNICAL_GATES.md`, `docs/M4ML_STUDIO_ACCEPTANCE.md`, `docs/M4ML_STUDIO_BRAND_UX.md`, `docs/M4ML_STUDIO_RELEASE.md`
-- 로고 디렉터리: `/home/m4ml/Desktop/Object-Aware/Logo`
-- SAM 3.1 체크포인트: `/home/m4ml/Desktop/Object-Aware/models/sam3.1`
+- 로고 디렉터리: `<project-root>/Logo`
+- SAM 3.1 체크포인트: `<project-root>/models/sam3.1`
 - 원본 학습 코드: `https://github.com/WooSungHyun03/object-aware-loss.git`
 - SAM 코드: `https://github.com/facebookresearch/sam3`
 - 논문: `https://www.mdpi.com/2227-7390/14/17/3221`

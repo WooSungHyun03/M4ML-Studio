@@ -3,8 +3,8 @@
 이 패키지는 **실제 Ubuntu 프로젝트를 여기서 수정한 결과물이 아니라**, 그 컴퓨터에서 실행 중인 Codex가 수행할 구체적인 추가 작업 명세다.
 
 ## 설치
-1. 기존 `/home/m4ml/Desktop/Object-Aware`의 파일을 변경/삭제하지 않는다.
-2. 이 ZIP을 `/home/m4ml/Desktop/Object-Aware`에 압축 해제하면 신규 파일(`M4ML_STUDIO_RESUME_PROMPT.md`, `docs/M4ML_STUDIO_*.md`)만 추가된다.
+1. 기존 `<project-root>`의 파일을 변경/삭제하지 않는다.
+2. 이 ZIP을 `<project-root>`에 압축 해제하면 신규 파일(`M4ML_STUDIO_RESUME_PROMPT.md`, `docs/M4ML_STUDIO_*.md`)만 추가된다.
 3. Codex 6.1 Sol에서 `M4ML_STUDIO_RESUME_PROMPT.md`를 실행 프롬프트로 입력한다.
 4. Codex가 기존 `AGENTS.md`, `CODEX_PROMPT.md`, 진행 중 코드와 문서를 확인하고, 해당 파일을 수정하며 실제 테스트해야 한다.
 
@@ -21,7 +21,7 @@
 ## 안전하고 확실한 작업 시작
 
 ```bash
-cd /home/m4ml/Desktop/Object-Aware
+cd <project-root>
 # 저장된 ZIP을 이곳으로 옮긴 후 실행
 unzip -n M4ML_Studio_Production_Upgrade.zip
 ```

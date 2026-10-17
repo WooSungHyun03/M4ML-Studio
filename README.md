@@ -2,7 +2,7 @@
 
 여러 사진에서 객체를 클릭해 선택하고, 마스크를 확인한 뒤 GPU 학습으로 **실제 색상을 가진 3D 메시**를 만드는 Ubuntu 로컬 앱입니다. 사진·마스크·모델은 컴퓨터 안에 저장합니다. 로그인이나 클라우드 업로드는 없습니다.
 
-**1.0.0 내부 릴리스 후보입니다. 공개 출시 승인 상태는 아닙니다.** 기술 검증과 공개 재배포 승인은 별개입니다. SuiteSparse GPL/LGPL 소스 제공·재링크/결합 배포 검토와 원본 비상업 연구 조건 때문에 공개·상업 릴리스는 보류합니다. [배포 판정](docs/M4ML_STUDIO_RELEASE_STATUS.md), [라이선스](docs/M4ML_STUDIO_LICENSES.md), [시험 보고서](docs/TEST_REPORT.md)를 확인하세요. 공개 다운로드 URL은 제공하지 않습니다.
+**M4ML Studio 1.0.0 — 비상업적 연구·평가용 릴리스입니다.** 연구·평가 목적의 사용·복제·재배포는 허용되며 **상업적 사용은 허용되지 않습니다**([LICENSE.md](LICENSE.md), [NOTICE](NOTICE), [제3자 고지](THIRD_PARTY_NOTICES.md)). 설치 패키지에 포함된 COLMAP 런타임의 GPL/LGPL 구성요소(SuiteSparse, GCC 런타임) 대응 소스는 같은 릴리스의 `M4ML-Studio-1.0.0-corresponding-source.tar`로 제공합니다. SAM 3.1 가중치는 포함하지 않습니다. 변경 사항은 [CHANGELOG](CHANGELOG.md), 릴리스 안내는 [RELEASE_NOTES](RELEASE_NOTES.md), 시험 결과는 [시험 보고서](docs/TEST_REPORT.md)를 보세요.
 
 ## 지원 환경과 준비
 
@@ -21,7 +21,7 @@ Ubuntu 24.04 X11의 시스템 준비에는 Python3, Git, curl, Miniforge, GCC/G+
 sudo apt install python3 git curl ca-certificates build-essential gcc-11 g++-11 bzip2 libgl1 libegl1 libglib2.0-0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libxtst6 libxi6 libasound2t64 libxkbfile1
 ```
 
-내부 검증 압축본과 같은 이름의 SHA256 파일을 받은 폴더에서:
+GitHub Release에서 설치 패키지와 같은 이름의 SHA256 파일을 받은 폴더에서:
 
 ```bash
 sha256sum -c M4ML-Studio-1.0.0-linux-x86_64.tar.gz.sha256

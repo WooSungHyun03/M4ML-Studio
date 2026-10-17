@@ -17,11 +17,11 @@ Default to unattended operation EXCEPT initial mask prompts, optional interactiv
 6. Original upstream Python code and its licenses, inspected *in the local checkout*; do not rewrite scientific methods.
 
 ### Absolute paths and repositories
-- Target workspace: `/home/m4ml/Desktop/Object-Aware`
+- Target workspace: `<project-root>`
 - Original training source: `https://github.com/WooSungHyun03/object-aware-loss.git`
 - Original publication: `https://www.mdpi.com/2227-7390/14/17/3221`
 - Official SAM implementation: `https://github.com/facebookresearch/sam3`
-- Existing checkpoint directory: `/home/m4ml/Desktop/Object-Aware/models/sam3.1`
+- Existing checkpoint directory: `<project-root>/models/sam3.1`
 - Never presume a checkpoint filename, hash, exact architecture, or full compatibility without inspection.
 
 ## Scientific integrity

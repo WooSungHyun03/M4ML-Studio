@@ -32,7 +32,7 @@ Current candidate results and precise original/new scopes are in [V1_RELEASE_REP
 
 ## 재현 명령과 적용 범위
 
-작업 경로는 `/home/m4ml/Desktop/Object-Aware`. 테스트는 격리된 `evidence/settings-artifacts/app-data`만 사용한다. 새 서버 시작/종료의 reconcile이 다른 학습 작업을 취소할 수 있으므로 GPU 작업을 직렬 실행하며, 같은 저장소의 서버를 학습 중 재시작하지 않는다.
+작업 경로는 `<project-root>`. 테스트는 격리된 `evidence/settings-artifacts/app-data`만 사용한다. 새 서버 시작/종료의 reconcile이 다른 학습 작업을 취소할 수 있으므로 GPU 작업을 직렬 실행하며, 같은 저장소의 서버를 학습 중 재시작하지 않는다.
 
 ```bash
 .runtime/bin/python -m unittest discover -s studio/tests -v
@@ -40,8 +40,8 @@ npm test --prefix frontend
 npm run build --prefix frontend
 STUDIO_DATA="$PWD/evidence/settings-artifacts/app-data" STUDIO_PORT=8769 ./scripts/start.sh
 # /api/health 준비를 확인한 뒤 별도 터미널에서 실행한다.
-export PW_DIR=/home/m4ml/.npm/_npx/31e32ef8478fbf80/node_modules
-export CHROME=/home/m4ml/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell
+export PW_DIR=~/.npm/_npx/31e32ef8478fbf80/node_modules
+export CHROME=~/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell
 node scripts/ui_settings_artifacts_e2e.mjs http://127.0.0.1:8769 "$PWD/evidence/settings-artifacts/standalone" evidence/settings-artifacts/browser-verified
 node scripts/ui_artifact_variants_e2e.mjs http://127.0.0.1:8769 "$PWD/evidence/settings-artifacts" evidence/settings-artifacts/variants-color-verified
 ```

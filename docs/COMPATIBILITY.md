@@ -44,7 +44,7 @@ User preference: **Object-Aware's Python / PyTorch / CUDA runtime remains the pr
 ## SAM 3.1 checkpoint inventory checklist
 
 - [x] Source and exact git SHA recorded
-- [x] Files under `/home/m4ml/Desktop/Object-Aware/models/sam3.1` enumerated
+- [x] Files under `<project-root>/models/sam3.1` enumerated
 - [x] Checkpoint names + SHA256 and tensor layouts identified, safe file metadata inspection
 - [x] Verified SAM 3.1 vs SAM 3 checkpoint identity
 - [x] Official initializer and inferred supported checkpoint combination used

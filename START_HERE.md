@@ -19,9 +19,9 @@ This ZIP contains only Codex instructions, specifications, test plans and a prog
 Keep a backup/inspection of any same-named files already in the target directory. These steps never overwrite existing files:
 
 ```bash
-mkdir -p /home/m4ml/Desktop/Object-Aware
-unzip -n Object_Aware_Codex_Loop.zip -d /home/m4ml/Desktop/Object-Aware
-cd /home/m4ml/Desktop/Object-Aware
+mkdir -p <project-root>
+unzip -n Object_Aware_Codex_Loop.zip -d <project-root>
+cd <project-root>
 ```
 
 Ensure actual `object-aware-loss` repo and its submodules exist at the target root. If the directory is initially empty except these docs, Codex should safely integrate/clone source **without nesting accidentally**. Do not blindly `git clone ... .` into a nonempty directory; follow `AGENTS.md` and inspect first.

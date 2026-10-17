@@ -217,7 +217,7 @@ Styles follow the M4ML design system (`M4ML-Studio-Design/design-system`, tokens
   User home project storage: .local/share/object-aware-studio/projects/<uuid>/
 ```
 
-`/home/m4ml/Desktop/Object-Aware` is **application/repository root**, not necessarily where huge user datasets should live. Default large artifacts under user data directory; allow configurable project storage. Keep model weights at existing absolute path (configurable; never copy unnecessarily). Web frontend builds to distributable static files and backend serves those files so Node is not needed at runtime. Use Python 3.10-compatible backend packages pinned not to break the source environment.
+`<project-root>` is **application/repository root**, not necessarily where huge user datasets should live. Default large artifacts under user data directory; allow configurable project storage. Keep model weights at existing absolute path (configurable; never copy unnecessarily). Web frontend builds to distributable static files and backend serves those files so Node is not needed at runtime. Use Python 3.10-compatible backend packages pinned not to break the source environment.
 
 Prefer installing app/backend into the Object-Aware anchor environment; isolate frontend Node dependencies from Python. Avoid a daemon requiring root; start/stop with one script and desktop shortcut optional. Server on `127.0.0.1` with ephemeral/controlled port; no public binding unless explicitly requested (out of scope). Consider CSRF/origin validation for local mutating endpoints, file picker limitations and safe token/nonce to prevent malicious websites accessing local processes.
 

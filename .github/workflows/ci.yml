@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install CPU test dependencies (pinned to the verified runtime)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-studio.txt numpy==1.24.4 pillow==12.3.0 plyfile==1.0.3 trimesh==4.3.2 scipy==1.10.1 opencv-python-headless==4.9.0.80
+      - name: Unit and integration tests (CPU; GPU-runtime modules listed in scripts/ci_tests.py)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python scripts/ci_tests.py
+
+  repository-hygiene:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: No weights, user data or secrets tracked
+        run: |
+          set -e
+          if git ls-files | grep -iE '\.(pt|pth|ckpt|safetensors|db|sqlite)$'; then echo "model/data file tracked"; exit 1; fi
+          if git grep -nE 'gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}'; then echo "secret-like string"; exit 1; fi
+          for f in LICENSE.md NOTICE THIRD_PARTY_NOTICES.md licenses/SAM-source-LICENSE licenses/colmap-runtime/inventory.json; do test -s "$f"; done

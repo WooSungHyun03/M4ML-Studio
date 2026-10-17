@@ -5,7 +5,7 @@
 ## 현재 실행
 
 일반 설치 앱: `~/.local/share/m4ml-studio/apps/0.3.0`.
-기존 단일 GPU 런타임: `/home/m4ml/Desktop/Object-Aware/.runtime` (전역 Conda 환경 아님).
+기존 단일 GPU 런타임: `<project-root>/.runtime` (전역 Conda 환경 아님).
 실제 데스크톱 등록: `~/.local/share/applications/m4ml-studio.desktop`.
 공식 체크포인트는 기존 `models/sam3.1` 파일을 XDG 설정으로 지정했고 패키지에 복사하지 않았다.
 
