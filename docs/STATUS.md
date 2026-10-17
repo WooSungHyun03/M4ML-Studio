@@ -447,3 +447,21 @@ Actual new tests: Qt25/27screens; new raw16 GPU COLMAP16/16→officialSAMlatest4
 2026-10-17 D exact installed fullsetup/reinstall PASS, all629files/5projectdocs/settings/runtimePython preserved. Installed116tests/115PASS+1Git-onlyskip47.028s. Fresh D raw16 project6f22b4ce-7653-4556-a520-075bad8edcd5 fullCOLMAP16/SAM3.1propagation/manualskip/checkpoint100→1000 alpha.27/res400/TSDF128/RGBPNG/sourcehash preservation PASS (`install/gpu-d.json`). Actual100LossEMAsamples finite, first0.97454,last0.22053,min0.14417,max1.0345; no convergence claim. Downloaded actual6441vertex/10844triangle PLY+GLB SHA match,linear/sRGBmaxerror5.960464e-8. APIshutdown200/exit0. Native D diagnosticpendinglabels proved correct while delaying realhealth; obsoleteold-document Fetch interceptionId fixed inQA, rerun pending. Next native rapidclick15, native100+TSDF256/I/O6; finaldocs-only archive/equivalence/reinstall/cleanup.
 
 2026-10-17T14:47+09:00: D native15rapidclick, diagnosis4, actualUI100-training/TSDF25610PASS. NativeI/O first test timed out waiting for QFileDialog callback; second attempt shows selectedFiles[] after programmatic selectFile. Directory timing hypothesis is not yet proven; next inspect actual filename widget/keyboard typing and modal screenshot. Full original failures preserved. No product dialog replaced, no pass claimed. Final report drafted with explicit pending markers.
+
+### v1.0.0 final release session (Claude, 2026-10-17)
+- **Recovered from:** Codex `codex/v1-solo-finish` @20987ff. Its last native I/O run had actually passed 6/6. Extended it to 11 checks and fixed real defects:
+  - export path not guaranteed (now atomic temp + replace, with unwritable-folder warning);
+  - English Qt dialogs (now Qt Korean translations);
+  - upside-down live/mesh views for COLMAP scenes with up = −Y (now scene-up from training cameras);
+  - bottom panel squeezing the editor on short windows;
+  - shortcut handler crash on non-element targets.
+- **Licence:** non-commercial redistribution permitted by every component licence. Corresponding source for the copyleft COLMAP runtime libraries is collected and verified (`scripts/collect_corresponding_source.sh`); `package_release.py --corresponding-source` gates and publishes it. NOTICE, catalog, About and README were updated. Commercial use is not permitted.
+- **Final package:** `release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz`, SHA256 `e6b98056eac18b12ef1cc2f8ddaef0f869f98d29f536d4890f2da1e52cbcbb8b`, source commit 58e7ce2. Corresponding source SHA256 `d5ced93f4af2b46d8523d046b33d6d2b517cd472ec71d424c090734e55b224cf`.
+- **Fresh-container install of that exact package:** PASS. See TEST_REPORT and RELEASE_READINESS.
+- **BLOCKED:** `git push` to https://github.com/WooSungHyun03/M4ML-Studio.git was denied by this session's permission policy. No push, no tag, no release was made. To finish, the user runs from the project root:
+  ```bash
+  git remote add m4ml https://github.com/WooSungHyun03/M4ML-Studio.git
+  git push m4ml codex/v1-solo-finish:main
+  gh release create v1.0.0 --repo WooSungHyun03/M4ML-Studio --target main --title "M4ML Studio v1.0.0" --notes-file release/v1.0.0-final/RELEASE_NOTES.md release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz release/v1.0.0-final/M4ML-Studio-1.0.0-linux-x86_64.tar.gz.sha256 release/v1.0.0-final/M4ML-Studio-1.0.0-corresponding-source.tar release/v1.0.0-final/M4ML-Studio-1.0.0-corresponding-source.tar.sha256 release/v1.0.0-final/SHA256SUMS
+  ```
+  Then download the assets (`gh release download v1.0.0 --repo WooSungHyun03/M4ML-Studio`), run `sha256sum -c SHA256SUMS`, and install.

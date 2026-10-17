@@ -195,3 +195,15 @@ python3 scripts/package_release.py --internal-research
 Detailed scoped results: QUALITY_HARNESS_REPORT.md; actualcommands E-008–E-015 in quality-harness/state/EVIDENCE.md.94Python20.086s/5frontend/build/editor28/Gaussianbrowser23/importtransitions2/nativeI/O6/CPUfault3/100photo-theme7 PASS. NewfullA30000/TSDF1024 plusinstalledB/C1000/TSDF256 are realGPUruns, separately labelled. Independent378433-color-vertex PLY/GLB error5.96e-08; loss992finite/last0.19404. Actualwrong-PID/cancel500/React310/Qtmissinglibrary FAIL evidence retained beforefixes. Fullsourcebundle2builds bytesidentical SHA70613bb5ce282efcef0935b54e0eba98ed8edcd07374474c62abc8ba9fd55870; finalfreeze QA recorded beside archive. No formal external novice/otherGPU/Wayland/overnightclaim. Public/commercial HOLD.
 
 Finaladditionalboundary: cf31a76 cancel-before-PID realSQLite/CPUworker regression,95PythonPASS30.154s. Privateupdateproject342files/Python2preserved; recompilednative2hasheschanged, original64GaussianCUDAfixtureall4lossvaluesexactmatchbaseline. See continuous/cancel-start-window-{before,verified}.log, final-95-python.log, update-preservation-classified.json, native-numerical-regression.json.
+
+## v1.0.0 final release session (Claude, 2026-10-17)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Native file I/O in real Qt (offscreen, unmodified product dialogs) | 11/11 PASS: folder/file pick, drag-drop upload, PLY+GLB byte-identical at chosen path, cancel, overwrite confirmation, unwritable folder, data unchanged, Korean dialogs | `evidence/v1/io-final-host/result.json` |
+| UX review, real Qt, 1366×768 + 1920×1080, dark + light | 104 screens PASS, 0 JS errors, no horizontal overflow (after fixes) | `evidence/v1/ux-final/` |
+| Orientation fix, live view vs. photo 000001 | upright, same viewpoint | `evidence/v1/orientation/` |
+| Source tests | Python 116/116, frontend 12/12, TypeScript + build | — |
+| CI emulation (Python 3.10 venv without GPU) | 108 PASS (GPU-only modules listed) | `scripts/ci_tests.py` |
+| Final package, fresh Ubuntu 24.04 container, new non-root user | install exit 0; CUDA extensions built; installed tests 116 OK (1 skip); GPU pipeline PASS (COLMAP 16/16, SAM 3.1, propagation/correction, 1000-step resume, TSDF, CUDA frame); desktop app Korean UI / font / GPU / project open PASS | `evidence/v1/final-install/` |
+| Not verified | installed-GUI mesh/live views (container has no GL; Xvfb run blocked by permission policy); other GPUs/OS/Wayland | — |
