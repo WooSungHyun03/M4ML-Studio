@@ -1,9 +1,53 @@
 """Per-user install/update/unregister; project data and runtime are preserved."""
 
-import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import argparse, errno, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def tree_contents(root):
+    contents = {}
+    for base, dirs, files in os.walk(root, followlinks=False):
+        for name in dirs + files:
+            path = Path(base) / name
+            key = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                contents[key] = ("link", os.readlink(path))
+            elif path.is_dir():
+                contents[key] = ("directory",)
+            else:
+                with path.open("rb") as stream:
+                    digest = hashlib.sha256()
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                contents[key] = ("file", digest.hexdigest())
+    return contents
+
+
+def retire_app(app, target):
+    """OverlayFS lower directories can reject rename even within one mount.
+
+    Publish a fully verified copy before removing the owned application tree.
+    Project/runtime paths are never passed here. Preserve symlinks as links.
+    """
+    try:
+        app.rename(target)
+        return
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise
+    original = tree_contents(app)
+    with tempfile.TemporaryDirectory(prefix=".retire-", dir=target.parent) as temp:
+        staged = Path(temp) / "app"
+        shutil.copytree(app, staged, symlinks=True)
+        if tree_contents(staged) != original or tree_contents(app) != original:
+            raise OSError("이전 설치 사본 검증에 실패했습니다. 원본을 보존했습니다.")
+        staged.rename(target)
+    # A complete backup exists before any original file is removed.
+    for base, dirs, files in os.walk(app, followlinks=False):
+        Path(base).chmod(Path(base).stat().st_mode | 0o700)
+    shutil.rmtree(app)
 
 
 def atomic(path, data):
@@ -64,8 +108,6 @@ def main():
     if args.uninstall:
         # Remove only generated integration files. Application bits are archived, projects/runtime untouched.
         current = json.loads(registry.read_text()) if registry.exists() else {}
-        if launcher.exists():
-            launcher.unlink()
         app = Path(current.get("app", ""))
         if (
             app.name == str(current.get("version", "0.2.0"))
@@ -81,13 +123,18 @@ def main():
             mode = app.stat().st_mode
             if app.stat().st_uid != os.getuid():
                 raise SystemExit("현재 사용자 소유의 설치만 제거할 수 있습니다.")
+            if app.is_symlink():
+                raise SystemExit("설치 폴더의 심볼릭 링크는 자동 제거하지 않습니다.")
             app.chmod(mode | 0o200)
             try:
-                app.rename(target)
+                retire_app(app, target)
             except BaseException:
-                app.chmod(mode)
+                if app.exists():
+                    app.chmod(mode)
                 raise
             target.chmod(mode)
+        if launcher.exists():
+            launcher.unlink()
         if registry.exists():
             registry.unlink()
         print(

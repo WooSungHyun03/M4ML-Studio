@@ -4,6 +4,45 @@ from studio.doctor import ROOT
 
 
 class InstallSafetyTests(unittest.TestCase):
+    def test_cross_device_retirement_verifies_copy_before_removing_original(self):
+        import errno
+        from unittest.mock import patch
+        from scripts.install import retire_app, tree_contents
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            app, retired = root / 'app', root / 'retired'
+            (app / 'read only').mkdir(parents=True)
+            (app / 'read only/원본.txt').write_bytes(b'actual source bytes')
+            (app / 'link').symlink_to('read only/원본.txt')
+            (app / 'read only').chmod(0o555)
+            expected = tree_contents(app)
+            real_rename = Path.rename
+            def cross_device(path, dest):
+                if path == app:
+                    raise OSError(errno.EXDEV, 'overlay lower layer')
+                return real_rename(path, dest)
+            with patch.object(Path, 'rename', cross_device):
+                retire_app(app, retired)
+            self.assertFalse(app.exists())
+            self.assertEqual(tree_contents(retired), expected)
+            (retired / 'read only').chmod(0o755)
+
+    def test_failed_cross_device_copy_preserves_original(self):
+        import errno
+        from unittest.mock import patch
+        from scripts.install import retire_app
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            app = root / 'app'
+            app.mkdir()
+            (app / 'keep').write_text('never discard')
+            with patch.object(Path, 'rename', side_effect=OSError(errno.EXDEV, 'overlay')), \
+                    patch('scripts.install.shutil.copytree', side_effect=OSError('disk full')):
+                with self.assertRaises(OSError):
+                    retire_app(app, root / 'retired')
+            self.assertEqual((app / 'keep').read_text(), 'never discard')
+            self.assertFalse((root / 'retired').exists())
+
     def test_read_only_app_uninstall_keeps_projects_runtime_and_prior_retired_copies(
         self,
     ):
