@@ -62,11 +62,7 @@ try {
     "actual native desktop",
     await q.evaluate("!!window.__M4ML_DESKTOP__ && !!window.m4mlReady"),
   );
-  await q.evaluate(
-    `setTimeout(() => location.assign(location.origin + "/?project=${project}"), 50); true`,
-  );
-  await q.sleep(1800);
-  await q.waitFor('!!document.querySelector(".stage-tabs")');
+  await q.navigate('/?project='+project,'.stage-tabs');
   let doc;
   if (saved) {
     doc = await q.evaluate(

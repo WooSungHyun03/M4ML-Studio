@@ -812,11 +812,11 @@ export default function App() {
             onClick={() => update({ bottom: true, bottomTab: "gpu" })}
             title="GPU 사용량 열기"
           >
-            <MonitorCog size={14} className={gpuInfo ? (active ? "acc" : "ok") : "err"} />
+            <MonitorCog size={14} className={!health ? "t3" : gpuInfo ? (active ? "acc" : "ok") : "err"} />
             <b>
               {gpuInfo
                 ? gpuInfo.name.replace(/^NVIDIA (GeForce )?/, "")
-                : "GPU 없음"}
+                : health ? "GPU 없음" : "GPU 확인 중"}
             </b>
             {gpuInfo && (
               <span className="num">
@@ -1156,8 +1156,8 @@ export default function App() {
               </>
             ) : (
               <>
-                <MonitorCog size={12} className="err" />
-                GPU 없음
+                <MonitorCog size={12} className={health ? "err" : "t3"} />
+                {health ? "GPU 없음" : "GPU 확인 중"}
               </>
             )}
           </span>

@@ -89,12 +89,28 @@ export async function connectQt(base) {
   };
   await send("Runtime.enable");
   await send("Page.enable");
+  const navigate = async (url, selector, timeout = 60000) => {
+    const target = new URL(url, await evaluate('location.href')).href;
+    const marker = `${Date.now()}-${Math.random()}`;
+    await evaluate(`window.__M4ML_QA_NAV__=${JSON.stringify(marker)};setTimeout(()=>location.assign(${JSON.stringify(target)}),50);true`);
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+      try {
+        if (await evaluate(`window.__M4ML_QA_NAV__!==${JSON.stringify(marker)} && location.href===${JSON.stringify(target)} && !!document.querySelector(${JSON.stringify(selector)})`)) return;
+      } catch (error) {
+        if (!/context|navigat/i.test(String(error))) throw error;
+      }
+      await sleep(100);
+    }
+    throw Error('New native document did not become ready: '+target);
+  };
   return {
     send,
     evaluate,
     sleep,
     waitFor,
     click,
+    navigate,
     errors,
     onEvent: (listener) => listeners.push(listener),
     close: () => ws.close(),

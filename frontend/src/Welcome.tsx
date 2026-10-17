@@ -4,6 +4,7 @@ import {
   Box,
   CircleCheck,
   CircleX,
+  LoaderCircle,
   Eye,
   FolderOpen,
   FolderPlus,
@@ -494,7 +495,9 @@ export function Welcome({
     }
   }
   const check = (ok: boolean | undefined, warn = false) =>
-    ok ? (
+    !health ? (
+      <LoaderCircle size={15} className="spin t3" />
+    ) : ok ? (
       <CircleCheck size={15} className="ok" />
     ) : warn ? (
       <TriangleAlert size={15} className="warn" />
@@ -541,6 +544,7 @@ export function Welcome({
         <div className="syscheck">
           <div className="h">
             <span className="grow">실행 환경 점검</span>
+            {!health && <span className="badge">진단 중</span>}
             {health &&
               (gpu && health.runtime_status?.available ? (
                 <span className="badge ok">사용 가능</span>
@@ -552,9 +556,9 @@ export function Welcome({
             {check(!!gpu)}
             <span className="k">처리 장치</span>
             <span>
-              {gpu ? gpu.name : "NVIDIA GPU 없음"}
+              {!health ? "NVIDIA GPU 확인 중" : gpu ? gpu.name : "NVIDIA GPU 없음"}
               <span className="n">
-                {gpu
+                {!health ? "처리 장치를 확인하고 있습니다" : gpu
                   ? `GPU 메모리 ${(gpu.total_mb / 1024).toFixed(0)} GB · 드라이버 ${gpu.driver || "—"}`
                   : "3D 모델 보기만 사용할 수 있습니다"}
               </span>
@@ -564,9 +568,9 @@ export function Welcome({
             {check(health?.runtime_status?.available)}
             <span className="k">재구성 엔진</span>
             <span>
-              {health?.runtime_status?.available ? "준비됨" : "확인 필요"}
+              {!health ? "확인 중" : health.runtime_status?.available ? "준비됨" : "확인 필요"}
               <span className="n">
-                {health?.runtime_status?.available
+                {!health ? "GPU 런타임을 확인하고 있습니다" : health.runtime_status?.available
                   ? "GPU 처리 런타임 확인"
                   : health?.runtime_status?.error || "설정 › 처리 장치 확인"}
               </span>
@@ -576,11 +580,11 @@ export function Welcome({
             {check(health?.checkpoint_exists)}
             <span className="k">객체 선택</span>
             <span>
-              {health?.checkpoint_exists
+              {!health ? "확인 중" : health.checkpoint_exists
                 ? "모델 파일 확인됨"
                 : "모델 파일 필요"}
               <span className="n">
-                {health?.checkpoint_exists
+                {!health ? "모델 파일 경로를 확인하고 있습니다" : health.checkpoint_exists
                   ? "첫 클릭 때 불러옵니다"
                   : "설정 › 모델 파일에서 경로를 지정하세요"}
               </span>
@@ -593,13 +597,13 @@ export function Welcome({
             )}
             <span className="k">카메라 정합</span>
             <span>
-              {health?.colmap?.available
+              {!health ? "확인 중" : health.colmap?.available
                 ? health.colmap.gpu
                   ? "GPU 가속 사용 가능"
                   : "CPU만 사용 가능"
                 : "엔진 없음"}
               <span className="n">
-                {health?.colmap?.gpu
+                {!health ? "카메라 정합 엔진을 확인하고 있습니다" : health.colmap?.gpu
                   ? "특징점 추출·매칭을 GPU로 처리"
                   : "설치 폴더에서 ./scripts/build_colmap.sh 실행"}
               </span>

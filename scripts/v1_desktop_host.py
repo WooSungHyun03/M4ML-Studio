@@ -32,6 +32,18 @@ def tick():
     if window is None:
         return
     previous = raw
+    if "capture" in request:
+        output = (commands.parent / request["capture"]).resolve()
+        if not output.is_relative_to(commands.parent):
+            raise ValueError("QA screenshot must stay in its own evidence folder")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        pixmap = window.grab()
+        ok = pixmap.save(str(output), "PNG")
+        commands.with_suffix(".capture.json").write_text(json.dumps({
+            "sequence": request["sequence"], "captured": ok,
+            "pixels": [pixmap.width(), pixmap.height()],
+            "method": "own QMainWindow.grab; no global desktop capture",
+        }))
     if "size" in request:
         width, height = request["size"]
         width, height = max(1024, min(width, 2100)), max(640, min(height, 1400))

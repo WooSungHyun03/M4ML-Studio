@@ -1,5 +1,6 @@
 // Real Qt page input, native window resizing through its isolated QA host.
 import fs from "node:fs";
+import path from "node:path";
 import { connectQt } from "./qt_cdp.mjs";
 const [debug, project, out, commands] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
@@ -14,7 +15,32 @@ const check = (name, ok, detail) => {
   if (!ok) throw Error(name);
 };
 async function shot(name) {
-  const s = await q.send("Page.captureScreenshot", { format: "png" });
+  if (process.env.STUDIO_QA_NATIVE_CAPTURE === "1") {
+    const sequence = Date.now();
+    fs.writeFileSync(commands, JSON.stringify({sequence, capture:path.relative(path.dirname(commands),path.join(out,name+'.png'))}));
+    const ackPath = commands.replace(/\.[^.]+$/, '') + '.capture.json';
+    let ack;
+    for(let i=0;i<50;i++) {
+      if(fs.existsSync(ackPath)) {
+        ack=JSON.parse(fs.readFileSync(ackPath));
+        if(ack.sequence===sequence)break;
+      }
+      await q.sleep(100);
+    }
+    if(ack?.sequence!==sequence || !ack.captured)throw Error('Native window capture failed: '+name);
+    report.captureMethod=ack.method;
+    report.screens.push(name);
+    return;
+  }
+  let s;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { s = await q.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }); break; }
+    catch (error) {
+      (report.captureRetries ??= []).push({name, attempt, error: String(error)});
+      if (attempt === 2) throw error;
+      await q.sleep(250);
+    }
+  }
   fs.writeFileSync(out + "/" + name + ".png", Buffer.from(s.data, "base64"));
   report.screens.push(name);
 }
@@ -30,7 +56,12 @@ async function resize(width, height) {
   check('native bundled font supports Korean', ack.korean_glyphs, ack.font_family);
 }
 const requests = [];
+const resourceUrls = new Map();
+report.networkFailures = [];
+await q.send("Network.enable");
 q.onEvent((e) => {
+  if (e.method === 'Network.requestWillBeSent') resourceUrls.set(e.params.requestId, e.params.request.url);
+  if (e.method === 'Network.loadingFailed') report.networkFailures.push({url:resourceUrls.get(e.params.requestId),...e.params});
   if (
     e.method === "Network.requestWillBeSent" &&
     e.params.request.url.endsWith("/live-render/frame")
@@ -68,7 +99,7 @@ async function drag(selector, dx, dy) {
 try {
   await q.waitFor("!!window.m4mlReady");
   check("native bridge active", await q.evaluate("!!window.__M4ML_DESKTOP__"));
-  await q.evaluate('document.fonts.ready.then(()=>true)');
+  await q.waitFor('[...document.fonts].some(f=>f.family.includes("Noto Sans KR") && f.status==="loaded")',30000);
   check('bundled Korean web font loaded', await q.evaluate('[...document.fonts].some(f=>f.family.includes("Noto Sans KR") && f.status==="loaded")'));
   await q.evaluate(`setTimeout(()=>location.assign('/'),50);true`);
   await q.sleep(700);
