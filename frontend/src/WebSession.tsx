@@ -1,7 +1,7 @@
 // Web service only: waiting room and the "continue in another browser" link.
 import { useEffect, useState } from "react";
 import { Copy, Hourglass, Link2 } from "lucide-react";
-import { csrfToken, turnstileSiteKey } from "./platform";
+import { csrfToken, operatorContact, turnstileSiteKey } from "./platform";
 
 export interface Admission {
   slot: "active" | "queued" | "full";
@@ -106,6 +106,27 @@ export function DeleteWorkspace() {
 }
 
 
+/** The privacy notice, matching what the service actually keeps and for how long. */
+export function PrivacyNotice() {
+  const contact = operatorContact();
+  return (
+    <details className="privacy">
+      <summary>개인정보 처리 안내</summary>
+      <table>
+        <tbody>
+          <tr><th>올린 사진·마스크·3D 결과</th><td>3D 모델을 만드는 데만 씁니다. 위치·기기 정보 같은 사진 메타데이터는 저장하기 전에 지웁니다. 작업 공간을 만든 날로부터 7일 뒤, 또는 직접 지울 때 서버에서 삭제되며 백업하지 않습니다.</td></tr>
+          <tr><th>작업 공간 쿠키</th><td>같은 브라우저에서 이어서 작업하기 위해 7일 동안 둡니다. 서버에는 식별용 해시만 저장합니다.</td></tr>
+          <tr><th>접속 IP 주소</th><td>남용을 막기 위한 요청 횟수 제한에 씁니다. 메모리에 최대 1시간, 새 작업 공간 기록은 30일 보관합니다.</td></tr>
+          <tr><th>운영 기록</th><td>작업 시작·종료 시각 같은 기록(사진·IP 없음)을 장애 대응에 쓰며 30일 뒤 지웁니다(백업 포함 최대 37일).</td></tr>
+          <tr><th>제3자</th><td>서비스 연결(Cloudflare Tunnel)과 자동 등록 방지 확인(Cloudflare Turnstile) 과정에서 Cloudflare가 접속 정보를 처리합니다.</td></tr>
+          <tr><th>직접 지우기</th><td>첫 화면의 "지금 작업 공간 지우기"로 모든 사진과 결과를 바로 지울 수 있습니다.</td></tr>
+          <tr><th>문의</th><td>{contact ? <a href={`mailto:${contact}`}>{contact}</a> : "운영자 연락처가 아직 등록되지 않았습니다."}</td></tr>
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
 declare global {
   interface Window {
     turnstile?: { render: (el: HTMLElement, options: Record<string, unknown>) => string };
@@ -137,6 +158,7 @@ export function Consent({ onToken, error }: { onToken: (token: string) => void; 
         <li>다른 사람의 얼굴이나 개인정보, 권리가 있는 사진은 올리지 마세요.</li>
         <li>자동 등록을 막기 위해 Cloudflare 확인을 거칩니다.</li>
       </ul>
+      <PrivacyNotice />
       <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
         위 내용을 확인했습니다

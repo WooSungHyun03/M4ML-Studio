@@ -109,6 +109,9 @@ class LeaseTests(Base):
         self.assertEqual(self.leases.owner()["kind"], "interactive")  # still only the viewer
         self.assertEqual(self.ask(a).status, "granted")  # once the desktop is gone
         self.assertEqual(self.leases.owner()["kind"], "batch")
+        # found on the installed service: after a job the lease stays "batch" while the viewer
+        # keeps the lock — the next job must still not start beside the desktop
+        self.assertEqual(self.ask(a, external_busy=True).reason, "external")
 
     def test_maintenance_mode(self):
         a, = self.new(1)

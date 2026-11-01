@@ -63,7 +63,7 @@ echo "  UI bundle: $(sha256sum "$ROOT/frontend/dist/index.html" | cut -c1-16)"
 [ -f /etc/m4ml-web/gateway.env ] || run install -o root -g m4ml-web -m 0640 "$ROOT/deploy/web/systemd/gateway.env.example" /etc/m4ml-web/gateway.env
 [ -f /etc/m4ml-web/turnstile.secret ] || run install -o root -g root -m 0600 /dev/null /etc/m4ml-web/turnstile.secret
 # Public name and Turnstile site key (both public values) when given:
-#   sudo M4ML_PUBLIC_HOST=studio.example.com M4ML_TURNSTILE_SITEKEY=0x4AAA... install.sh --apply
+#   sudo M4ML_PUBLIC_HOST=studio.example.com M4ML_TURNSTILE_SITEKEY=0x4AAA... M4ML_CONTACT=ops@example.org install.sh --apply
 setenv() {  # KEY VALUE: replace or append one line of gateway.env
   run sed -i "/^$1=/d" /etc/m4ml-web/gateway.env
   run sh -c "echo '$1=$2' >> /etc/m4ml-web/gateway.env"
@@ -74,6 +74,10 @@ if [ -n "${M4ML_PUBLIC_HOST:-}" ]; then
   setenv STUDIO_WEB_HOSTS "127.0.0.1,localhost,$M4ML_PUBLIC_HOST"
   setenv STUDIO_WEB_PUBLIC_HOST "$M4ML_PUBLIC_HOST"
   setenv STUDIO_WEB_TRUST_CLOUDFLARE 1   # the gateway listens on 127.0.0.1; only cloudflared reaches it
+fi
+if [ -n "${M4ML_CONTACT:-}" ]; then  # operator e-mail shown in the site's privacy notice
+  [[ "$M4ML_CONTACT" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] || { echo "bad contact e-mail" >&2; exit 1; }
+  setenv STUDIO_WEB_CONTACT "$M4ML_CONTACT"
 fi
 if [ -n "${M4ML_TURNSTILE_SITEKEY:-}" ]; then
   [[ "$M4ML_TURNSTILE_SITEKEY" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "bad site key" >&2; exit 1; }

@@ -627,10 +627,10 @@ def create_app(cfg: config_module.Config | None = None) -> FastAPI:
         body = await read_body(request, BODY_LIMITS.get(route.template, DEFAULT_BODY_LIMIT))
         if body is None:
             return problem(413, "요청이 너무 큽니다.")
-        # also when the holder turns a viewer lease into heavy work: the desktop may have started
-        # on the GPU in the meantime (it does not take the shared lock)
-        upgrade = bool(owner and owner["session_id"] == session.id and owner["kind"] == "interactive")
-        external = await asyncio.get_running_loop().run_in_executor(None, external_gpu_busy) if (not owner or upgrade) else False
+        # also when the holder starts more heavy work (its lease may only be kept by its viewer):
+        # the desktop may have started on the GPU meanwhile (it does not take the shared lock)
+        holder_job = bool(owner and owner["session_id"] == session.id and kind_of(route.template) == "batch")
+        external = await asyncio.get_running_loop().run_in_executor(None, external_gpu_busy) if (not owner or holder_job) else False
         grant = leases.request(session.id, project_id, route.template, raw, body, external_busy=external)
         if grant.status == "granted":
             response = await forward(request, route, backend, raw, body=body)
@@ -661,6 +661,8 @@ def create_app(cfg: config_module.Config | None = None) -> FastAPI:
         meta = '<meta name="m4ml-platform" content="web" />'
         if cfg.turnstile_sitekey:
             meta += f'\n    <meta name="m4ml-turnstile" content="{html_escape(cfg.turnstile_sitekey)}" />'
+        if cfg.contact:
+            meta += f'\n    <meta name="m4ml-contact" content="{html_escape(cfg.contact)}" />'
         html = index.read_text().replace("<head>", "<head>\n    " + meta, 1)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 

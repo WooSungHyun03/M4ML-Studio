@@ -57,3 +57,9 @@ export function turnstileSiteKey(): string | null {
   if (typeof document === "undefined") return null;
   return document.querySelector('meta[name="m4ml-turnstile"]')?.getAttribute("content") || null;
 }
+
+/** Operator contact the gateway publishes for the privacy notice (web service only). */
+export function operatorContact(): string | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector('meta[name="m4ml-contact"]')?.getAttribute("content") || null;
+}

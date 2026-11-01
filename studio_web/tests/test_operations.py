@@ -77,6 +77,16 @@ class Operations(unittest.TestCase):
         self.assertIn("Can't mount proc", logs.output[0])
         self.assertNotIn(str(Path(self.temp.name) / "w2"), logs.output[0])
 
+    def test_privacy_contact_is_published_and_checked(self):
+        if not (config_module.ROOT / "frontend/dist/index.html").is_file():
+            self.skipTest("frontend not built")
+        app = create_app(config_module.load({**self.env, "STUDIO_WEB_CONTACT": "ops@example.ac.kr"}))
+        self.assertIn('<meta name="m4ml-contact" content="ops@example.ac.kr" />', TestClient(app, base_url=ORIGIN).get("/").text)
+        self.assertNotIn("m4ml-contact", self.client.get("/").text)  # not configured: no meta
+        for bad in ('x" onload="alert(1)', "not an email", "a@b"):
+            with self.assertRaises(RuntimeError):
+                config_module.load({**self.env, "STUDIO_WEB_CONTACT": bad})
+
     def test_backup_restore_keeps_sessions(self):
         target = Path(self.temp.name) / "backup.sqlite"
         result = admin.backup(str(target))

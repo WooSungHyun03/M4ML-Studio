@@ -22,7 +22,7 @@ import type { Health, Project } from "./api";
 import { fmt } from "./context";
 import { isDesktop, pickFolder } from "./desktop";
 import { capabilities } from "./platform";
-import { DeleteWorkspace, RecoveryLink } from "./WebSession";
+import { DeleteWorkspace, PrivacyNotice, RecoveryLink } from "./WebSession";
 
 export interface FolderScan {
   path: string;
@@ -691,6 +691,7 @@ export function Welcome({
               </div>
               <RecoveryLink />
               <DeleteWorkspace />
+              <PrivacyNotice />
               </>
             ) : (
             <div className="start-actions">

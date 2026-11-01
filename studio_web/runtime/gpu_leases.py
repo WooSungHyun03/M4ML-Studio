@@ -126,7 +126,7 @@ class GpuLeases:
         with self.db.connect(immediate=True) as db:
             owner = db.execute(f"SELECT * FROM gpu_leases WHERE state IN {HOLDING}").fetchone()
             if owner and owner["session_id"] == session_id:
-                if kind == "batch" and owner["kind"] == "interactive" and external_busy:
+                if kind == "batch" and external_busy:
                     return Grant("busy", reason="external")  # heavy work never starts beside the desktop
                 if kind == "batch" and owner["kind"] == "interactive":
                     db.execute("UPDATE gpu_leases SET kind='batch', route=?, project_id=? WHERE id=?", (route, project_id, owner["id"]))

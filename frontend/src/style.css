@@ -532,3 +532,9 @@ details.advanced > summary { cursor: pointer; color: var(--tx-2); font-size: 12.
   html[data-platform="web"] .welcome .start-actions { display: grid; grid-template-columns: 1fr; }
   html[data-platform="web"] .welcome .start-tile { width: 100%; max-width: none; }
 }
+.privacy{margin:12px 0;font-size:13px}
+.privacy summary{cursor:pointer;color:var(--t2,#b8b8c0)}
+.privacy table{margin-top:8px;border-collapse:collapse;width:100%}
+.privacy th{width:11em;text-align:left;vertical-align:top;padding:5px 16px 5px 8px;font-weight:600;white-space:nowrap;background:none;border:0}
+.privacy td{padding:5px 8px;line-height:1.55;border:0;border-top:1px solid #2c2c33}
+@media (max-width:560px){.privacy th{white-space:normal;width:6.5em}}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,6 +29,7 @@ class Config:
     turnstile_secret_file: Path | None  # systemd credential or 0600 file; never the environment
     turnstile_verify_url: str
     public_host: str | None  # hostname Turnstile must report (the tunnel's public name)
+    contact: str | None  # operator contact shown in the privacy notice (public)
 
     @property
     def sessions_dir(self) -> Path:
@@ -74,9 +76,12 @@ def load(env: dict[str, str] | None = None) -> Config:
         turnstile_secret_file=_secret_file(env),
         turnstile_verify_url=env.get("STUDIO_WEB_TURNSTILE_VERIFY_URL", "https://challenges.cloudflare.com/turnstile/v0/siteverify"),
         public_host=env.get("STUDIO_WEB_PUBLIC_HOST") or None,
+        contact=env.get("STUDIO_WEB_CONTACT") or None,
     )
     if config.turnstile_sitekey and not (config.turnstile_secret_file and config.turnstile_secret_file.is_file()):
         raise RuntimeError("Turnstile 사이트 키가 있으면 비밀 키 파일도 있어야 합니다.")
+    if config.contact and not re.fullmatch(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", config.contact):
+        raise RuntimeError("STUDIO_WEB_CONTACT는 이메일 주소여야 합니다.")
     if config.sandbox not in ("none", "bwrap"):
         raise RuntimeError("STUDIO_WEB_SANDBOX는 none 또는 bwrap이어야 합니다.")
     if config.home in (Path.home().resolve(), Path("/")):
