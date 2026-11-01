@@ -6,6 +6,7 @@ import hashlib, json, tempfile, unittest
 from pathlib import Path
 from PIL import Image
 from fastapi.testclient import TestClient
+import isolation  # noqa: F401  (before studio.api: never open real user data)
 from studio import api
 from studio.project_scan import scan_folder
 from studio.store import Store

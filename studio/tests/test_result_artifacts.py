@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 from plyfile import PlyData, PlyElement
 from fastapi.testclient import TestClient
+import isolation  # noqa: F401  (before studio.api: never open real user data)
 from studio import api
 from studio.store import Store
 from studio.result_artifacts import inspect_result

@@ -6,6 +6,7 @@ import type { Layout } from "./dock";
 import type { Selection } from "./context";
 import { fmt } from "./context";
 import { logFolder, openPath } from "./desktop";
+import { capabilities } from "./platform";
 
 type Tab = Layout["bottomTab"];
 const stageName = (s: string) => titles[(s === "preview" ? "sam" : s) as Stage] || s;
@@ -46,6 +47,7 @@ export function BottomPanel({
   selection: Selection;
   onSelect: (s: Selection) => void;
 }) {
+  const cap = capabilities();
   const jobs = project?.jobs || [];
   const [jobId, setJobId] = useState<string | null>(null),
     [log, setLog] = useState(""),
@@ -180,8 +182,8 @@ export function BottomPanel({
               <span className="t2">{logJob ? `${stageName(logJob.stage)} · ${states[logJob.state] || logJob.state}` : "작업 없음"}</span>
               <span className="sp" />
               <button className="btn s ghost" disabled={!log} onClick={() => void navigator.clipboard?.writeText(log)}><Copy size={12} />복사</button>
-              {project?.project_path && <button className="btn s ghost" onClick={() => void openPath(project.project_path + "/logs")}><FolderOpen size={12} />프로젝트 로그 폴더</button>}
-              <button className="btn s ghost" onClick={() => void logFolder().then((p) => { if (p) void openPath(p); })}><FolderOpen size={12} />앱 로그 폴더</button>
+              {cap.serverPaths && project?.project_path && <button className="btn s ghost" onClick={() => void openPath(project.project_path + "/logs")}><FolderOpen size={12} />프로젝트 로그 폴더</button>}
+              {cap.serverPaths && <button className="btn s ghost" onClick={() => void logFolder().then((p) => { if (p) void openPath(p); })}><FolderOpen size={12} />앱 로그 폴더</button>}
             </div>
             <pre className="log-text console">{log.replace(/\x1b\[[0-9;]*m/g, "").split("\r").join("\n").slice(-30000) || "작업을 선택하면 실제 실행 기록이 표시됩니다."}</pre>
           </div>

@@ -1,0 +1,15 @@
+[Unit]
+Description=M4ML Studio Web gateway database backup
+
+[Service]
+Type=oneshot
+User=m4ml-web
+Group=m4ml-web
+EnvironmentFile=/etc/m4ml-web/gateway.env
+WorkingDirectory=/srv/m4ml-web/app
+ExecStart=/srv/m4ml-web/app/deploy/web/scripts/backup.sh /srv/m4ml-web/data/backups
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/m4ml-web/data
+PrivateTmp=yes
+NoNewPrivileges=yes

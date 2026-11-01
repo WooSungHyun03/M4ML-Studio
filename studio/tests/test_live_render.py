@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 from fastapi.testclient import TestClient
 
+import isolation  # noqa: F401  (before studio.api: never open real user data)
 from studio import api
 from studio.gaussian_protocol import RemoteRendererClient, camera_message, gl_view_from_colmap, perspective
 from studio.providers.render_gaussian_remote import GaussianRemoteRenderingProvider, ply_header

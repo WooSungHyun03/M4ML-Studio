@@ -1,3 +1,4 @@
+import { csrfToken, platform } from "./platform";
 export type Stage = "import" | "colmap" | "sam" | "review" | "train" | "mesh";
 export const stages: Stage[] = [
   "import",
@@ -213,6 +214,38 @@ async function auth() {
   if (!token) token = (await (await fetch("/api/session")).json()).token;
   return token;
 }
+/** Web service: reuse this browser's anonymous workspace or open a new one. The gateway
+ *  sets the HttpOnly session cookie and the readable CSRF cookie. */
+export class TurnstileRequired extends Error {}
+export async function ensureWebSession(turnstile?: string): Promise<{ slot: "active" | "queued" | "full"; position?: number }> {
+  return webSessionPost("/api/web/session", turnstile ? { turnstile } : undefined, "작업 공간을 열지 못했습니다. 잠시 뒤 다시 시도하세요.");
+}
+/** Use a one-time "continue in another browser" link (the gateway rotates the session). */
+export async function redeemRecovery(token: string) {
+  return webSessionPost("/api/web/session/recover", { token }, "이어하기 링크가 올바르지 않거나 이미 사용되었습니다.");
+}
+async function webSessionPost(url: string, body: unknown, fallback: string) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken() },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  let data: { detail?: string; slot?: "active" | "queued" | "full"; position?: number } = {};
+  try {
+    data = await response.json();
+  } catch {}
+  if (response.status === 403 && response.headers.get("x-turnstile") === "required")
+    throw new TurnstileRequired(typeof data.detail === "string" ? data.detail : fallback);
+  if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : fallback);
+  return { slot: data.slot || "active", position: data.position };
+}
+/** Headers that authorise a state-changing request. The web gateway authenticates the
+ *  browser by its session cookie and adds the backend token itself; the browser never
+ *  sees a backend token there, and /api/session is never called. */
+export async function writeHeaders(): Promise<Record<string, string>> {
+  if (platform() === "web") return { "x-csrf-token": csrfToken() };
+  return { "x-studio-token": await auth() };
+}
 export async function api<T = Project>(
   url: string,
   options: RequestInit = {},
@@ -221,7 +254,7 @@ export async function api<T = Project>(
   if (!(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   if (options.method && !["GET", "HEAD"].includes(options.method))
-    headers.set("x-studio-token", await auth());
+    for (const [name, value] of Object.entries(await writeHeaders())) headers.set(name, value);
   const response = await fetch("/api" + url, { ...options, headers });
   if (!response.ok) {
     let detail = "요청에 실패했습니다.";
@@ -234,7 +267,12 @@ export async function api<T = Project>(
     } catch {}
     throw new Error(detail);
   }
-  return response.json();
+  const body = await response.json();
+  // Web service: GPU work queued behind another workspace (202). Tell the user; the job
+  // starts by itself when the GPU frees up and shows up in the normal progress display.
+  if (response.status === 202 && body?.queued && typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent("m4ml:notice", { detail: body.detail }));
+  return body;
 }
 /** Binary POST (live render frames). Errors carry the server's live-render state. */
 export class LiveError extends Error {
@@ -253,7 +291,7 @@ export async function postBlob(
     signal,
     headers: {
       "Content-Type": "application/json",
-      "x-studio-token": await auth(),
+      ...(await writeHeaders()),
     },
   });
   if (!response.ok) {

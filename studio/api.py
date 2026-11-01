@@ -28,6 +28,28 @@ from studio.store import Store, invalidate
 # in that mode /api/session is disabled so other local pages cannot discover it.
 TOKEN = os.environ.get("STUDIO_TOKEN") or secrets.token_urlsafe(32)
 DESKTOP = os.environ.get("STUDIO_DESKTOP") == "1"
+# Web mode: this backend serves one anonymous web session behind studio_web's gateway.
+# Defence in depth on top of the gateway policy: every request (GET included) needs the
+# per-backend token, routes the web never offers are refused, and errors carry no paths.
+WEB = os.environ.get("STUDIO_MODE") == "web"
+if WEB and not (os.environ.get("STUDIO_DATA") and os.environ.get("STUDIO_TOKEN")):
+    raise RuntimeError("STUDIO_MODE=web requires STUDIO_DATA and STUDIO_TOKEN")
+WEB_DENIED = frozenset({
+    ("GET", "/api/session"),
+    ("PUT", "/api/settings/checkpoint"),
+    ("POST", "/api/shutdown"),
+    ("GET", "/api/diagnostics"),
+    ("POST", "/api/projects/{project_id}/restore"),
+    ("POST", "/api/projects/{project_id}/import-files"),
+    ("POST", "/api/projects/{project_id}/inspect-import"),
+    ("POST", "/api/projects/{project_id}/commit-import"),
+    ("POST", "/api/projects/{project_id}/mesh-file"),
+    ("POST", "/api/scan-folder"),
+    ("POST", "/api/projects/from-folder"),
+    ("POST", "/api/projects/{project_id}/live-render/external"),
+    ("POST", "/api/projects/{project_id}/duplicate"),
+})
+WEB_FILE_TYPES = {".png", ".jpg", ".jpeg", ".ply", ".glb"}
 store = Store()
 
 
@@ -79,8 +101,19 @@ async def lifespan(app):
 app = FastAPI(title="M4ML Studio", lifespan=lifespan)
 
 
+def _web_denied(request):
+    from starlette.routing import Match
+
+    for route in app.router.routes:
+        if getattr(route, "methods", None) and route.matches(request.scope)[0] == Match.FULL:
+            return (request.method, route.path) in WEB_DENIED
+    return request.url.path.startswith(("/docs", "/redoc", "/openapi.json"))
+
+
 @app.middleware("http")
 async def local_only(request: Request, call_next):
+    if WEB and (request.headers.get("x-studio-token") != TOKEN or _web_denied(request)):
+        return JSONResponse({"detail": "찾을 수 없습니다."}, status_code=404)
     host = request.headers.get("host", "").split(":")[0]
     if host not in {"127.0.0.1", "localhost", "testserver"}:
         return JSONResponse(
@@ -146,6 +179,8 @@ async def invalid_request(request, exc):
 
 @app.exception_handler(FileNotFoundError)
 async def missing(request, exc):
+    if WEB:
+        return JSONResponse({"detail": "필요한 파일을 찾을 수 없습니다."}, status_code=404)
     return JSONResponse(
         {
             "detail": f"필요한 파일을 찾을 수 없습니다. 프로젝트 파일을 확인하세요. {getattr(exc,'filename',None) or str(exc)}"
@@ -426,6 +461,21 @@ def rename(project_id: str, body: Name):
 def archive(project_id: str):
     with editable(project_id):
         return store.update(project_id, lambda p: p.update(archived=True))
+
+
+@app.post("/api/projects/{project_id}/purge")
+def purge_project(project_id: str):
+    """Web service only: delete a project and its files (desktop projects are archived)."""
+    if not WEB:
+        raise HTTPException(404, "찾을 수 없습니다.")
+    from studio import live_render
+
+    live_render.release(project_id=project_id)
+    with editable(project_id):
+        if store.get(project_id).get("live_prompt", {}).get("status") == "pending":
+            raise HTTPException(409, "진행 중인 객체 선택이 끝난 뒤 삭제하세요.")
+        removed = store.purge(project_id)
+    return {"deleted": True, "files_removed": removed}
 
 
 @app.post("/api/projects/{project_id}/restore")
@@ -1902,6 +1952,8 @@ def artifact(project_id: str, path: str):
     root = store.path(project_id)
     store.get(project_id)
     file = (root / path).resolve()
+    if WEB and file.suffix.lower() not in WEB_FILE_TYPES:
+        raise HTTPException(403, "허용된 프로젝트 결과 파일만 열 수 있습니다.")
     if not file.is_relative_to(root) or file.suffix.lower() not in {
         ".png",
         ".jpg",

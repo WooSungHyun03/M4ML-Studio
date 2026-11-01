@@ -1,0 +1,11 @@
+# Allows bubblewrap to create the unprivileged user namespace for session sandboxes when
+# started from the system service (Ubuntu 24.04 restricts unprivileged user namespaces).
+# Attached to a service-only copy of bwrap (root:m4ml-web 0750), not /usr/bin/bwrap, so the
+# restriction stays in force for every other account and program on the machine.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile m4ml-bwrap /usr/local/libexec/m4ml-web/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/m4ml-bwrap>
+}

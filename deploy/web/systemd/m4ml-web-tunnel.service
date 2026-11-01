@@ -1,0 +1,40 @@
+# Cloudflare Tunnel for M4ML Studio Web only. Separate from any other cloudflared.service on
+# the machine. Outbound connections only: no inbound port is opened. The tunnel token is a
+# systemd credential (root-only file), never on the command line or in the environment.
+# Installed by deploy/web/scripts/install.sh when /etc/m4ml-web/tunnel.token is filled.
+[Unit]
+Description=M4ML Studio Web Cloudflare Tunnel
+After=network-online.target m4ml-web-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+LoadCredential=token:/etc/m4ml-web/tunnel.token
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run --token-file %d/token
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+LockPersonality=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

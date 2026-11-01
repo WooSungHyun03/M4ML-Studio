@@ -36,13 +36,13 @@ import type { DialogKind } from "./Dialogs";
 import { DockContext, Splitter, useLayout } from "./dock";
 import type { Layout } from "./dock";
 import {
-  isDesktop,
   logFolder,
   openPath,
   quitApp,
   setTitle,
   toggleFullScreen,
 } from "./desktop";
+import { capabilities, platform } from "./platform";
 import { ImagesStage } from "./stages/ImagesStage";
 import { CameraStage } from "./stages/CameraStage";
 import { MaskStage } from "./stages/MaskStage";
@@ -91,6 +91,7 @@ const TAB_LABEL: Record<Stage, string> = {
 const emit = (name: string) => window.dispatchEvent(new CustomEvent("m4ml:" + name));
 
 export default function App() {
+  const cap = capabilities();
   const [taskPanel, setTaskPanel] = useState<string | null>(null);
   const closed = useRef(false);
   const [appClosed, setAppClosed] = useState(false);
@@ -234,6 +235,11 @@ export default function App() {
     void setTitle(project?.name || "");
   }, [project?.name]);
   useEffect(() => {
+    const show = (e: Event) => setNotice(String((e as CustomEvent).detail || ""));
+    window.addEventListener("m4ml:notice", show);
+    return () => window.removeEventListener("m4ml:notice", show);
+  }, []);
+  useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 4000);
     return () => clearTimeout(t);
@@ -278,6 +284,15 @@ export default function App() {
       dirty.current = false;
       setStage(s);
     }
+  }
+  async function deleteProject() {
+    if (!project) return;
+    if (!window.confirm(`'${project.name}' 프로젝트를 삭제할까요?\n\n사진, 마스크, 학습 결과, 3D 모델이 서버에서 바로 지워지며 되돌릴 수 없습니다. 실행 중인 작업은 먼저 중지합니다.`)) return;
+    await action(async () => {
+      await api(base, { method: "DELETE" });
+      open(null);
+      setProjects(await api<Project[]>("/projects"));
+    });
   }
   async function shutdown() {
     if (!window.confirm("M4ML Studio를 종료할까요? 실행 중인 작업은 중지하며 파일과 기록은 보존합니다.")) return;
@@ -412,6 +427,7 @@ export default function App() {
             label: "다른 이름으로 저장…",
             shortcut: "Ctrl+Shift+S",
             disabled: !project || !!active,
+            hidden: !cap.importExisting,
             action: () => setDialog("saveas"),
           },
           { separator: true },
@@ -421,9 +437,10 @@ export default function App() {
             hint: "카메라 정합 전 프로젝트에만 사진을 추가할 수 있습니다",
             action: () => imageInput.current?.click(),
           },
-          { label: "외부 데이터 가져오기 (폴더)…", action: newProject },
+          { label: "외부 데이터 가져오기 (폴더)…", hidden: !cap.serverFolders, action: newProject },
           {
             label: "3D 모델 가져오기…",
+            hidden: !cap.importExisting,
             action: () => meshInput.current?.click(),
           },
           {
@@ -436,9 +453,16 @@ export default function App() {
           {
             label: "프로젝트 폴더 열기",
             disabled: !project?.project_path,
+            hidden: !cap.serverPaths,
             action: () => void openPath(project!.project_path!),
           },
-          { label: "종료", shortcut: "Ctrl+Q", action: () => void shutdown() },
+          { label: "종료", shortcut: "Ctrl+Q", hidden: !cap.serverPaths, action: () => void shutdown() },
+          {
+            label: "프로젝트 삭제…",
+            hidden: cap.serverPaths, // web service: deletes files for real (desktop archives)
+            disabled: !project,
+            action: () => void deleteProject(),
+          },
         ],
       },
       {
@@ -651,6 +675,7 @@ export default function App() {
           { separator: true },
           {
             label: "로그 폴더 열기",
+            hidden: !cap.serverPaths,
             action: () =>
               void logFolder().then((p) => {
                 if (p) void openPath(p); else if (project?.project_path) void openPath(project.project_path + "/logs"); else setNotice("로그 폴더는 데스크톱 앱에서 열 수 있습니다.");
@@ -684,7 +709,7 @@ export default function App() {
       else if (ctrl && k === "j") { e.preventDefault(); showBottom(!effective.bottom); }
       else if (ctrl && k === ",") { e.preventDefault(); setShowSettings("device"); }
       else if (ctrl && k === "r" && rerunnable(stage)) { e.preventDefault(); rerun(stage); }
-      else if (ctrl && k === "q") { e.preventDefault(); void shutdown(); }
+      else if (ctrl && k === "q" && cap.serverPaths) { e.preventDefault(); void shutdown(); }
       else if (ctrl && /^[1-6]$/.test(e.key) && project) { e.preventDefault(); goStage(stages[+e.key - 1]); }
       else if (e.key === "F1") { e.preventDefault(); setDialog("guide"); }
       else if (e.key === "F11") { e.preventDefault(); void toggleFullScreen(); }
@@ -1165,7 +1190,7 @@ export default function App() {
             )}
           </span>
           <span className="it t4">
-            {isDesktop() ? "" : "개발 모드 · "}v{health?.version || ""}
+            {{ desktop: "", web: "웹 · ", dev: "개발 모드 · " }[platform()]}v{health?.version || ""}
           </span>
         </footer>
         {taskPanel && project && (

@@ -120,6 +120,23 @@ class Store:
             raise FileNotFoundError("프로젝트를 찾을 수 없습니다.")
         return json.loads(row[0])
 
+    def purge(self, project_id):
+        """Delete a project for good: files first moved aside atomically, then removed, and
+        its records dropped. Used by the web service (desktop projects are archived)."""
+        import shutil
+
+        root = self.path(project_id)
+        self.get(project_id)
+        doomed = root.with_name(".deleting-" + project_id)
+        if root.exists():
+            os.replace(root, doomed)
+        with self.db() as db:
+            db.execute("DELETE FROM events WHERE project_id=?", (project_id,))
+            db.execute("DELETE FROM jobs WHERE project_id=?", (project_id,))
+            db.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        shutil.rmtree(doomed, ignore_errors=True)
+        return not doomed.exists()
+
     def list(self):
         with self.db() as db:
             return [

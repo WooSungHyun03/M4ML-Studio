@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { capabilities } from "./platform";
 import { CircleCheck, CircleX, Moon, Power, Sun, X } from "lucide-react";
 import { api, post } from "./api";
 import type { Health } from "./api";
@@ -44,7 +45,10 @@ export function SettingsDrawer({
   setTheme: (t: string) => void;
   onShutdown: () => void;
 }) {
-  const [tab, setTab] = useState<"device" | "engines" | "model" | "license">(initialTab),
+  const cap = capabilities();
+  const [tab, setTab] = useState<"device" | "engines" | "model" | "license">(
+    !cap.modelPath && (initialTab === "model" || initialTab === "engines") ? "device" : initialTab,
+  ),
     [info, setInfo] = useState<Engines | null>(null),
     [path, setPath] = useState(""),
     [message, setMessage] = useState(""),
@@ -86,7 +90,7 @@ export function SettingsDrawer({
           ["engines", "고급 정보"],
           ["model", "모델 파일"],
           ["license", "라이선스"],
-        ] as const).map(([k, l]) => (
+        ] as const).filter(([k]) => cap.modelPath || (k !== "model" && k !== "engines")).map(([k, l]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -109,18 +113,22 @@ export function SettingsDrawer({
                 <span>3D 재구성 · 객체 선택</span><span>{health?.runtime_status?.available ? <span className="ok">GPU 사용 가능</span> : <span className="err">사용 불가</span>}</span>
                 <span>카메라 정합</span><span>{health?.colmap?.available ? (health.colmap.gpu ? <span className="ok">GPU 가속</span> : <span className="warn">CPU 전용</span>) : <span className="err">엔진 없음</span>}</span>
                 <span>객체 선택 모델 파일</span><span>{health?.checkpoint_exists ? <span className="ok">확인됨</span> : <span className="err">없음</span>}</span>
-                <span>저장 공간</span><span>{health ? Math.floor(health.disk_free / 1024 ** 3) + " GB 여유" : "—"}</span>
+                {cap.serverPaths && <><span>저장 공간</span><span>{health ? Math.floor(health.disk_free / 1024 ** 3) + " GB 여유" : "—"}</span></>}
               </div>
             </div>
-            <div className="sec">
-              <div className="row">
-                <button className="btn" onClick={() => void diagnostics()}>진단 파일 저장</button>
-                <span className="hint">프로젝트 경로·사진·로그 원문은 넣지 않으며 외부로 전송하지 않습니다.</span>
-              </div>
-            </div>
-            <div className="sec">
-              <button className="btn danger" onClick={onShutdown}><Power size={14} />M4ML Studio 종료</button>
-            </div>
+            {cap.serverPaths && (
+              <>
+                <div className="sec">
+                  <div className="row">
+                    <button className="btn" onClick={() => void diagnostics()}>진단 파일 저장</button>
+                    <span className="hint">프로젝트 경로·사진·로그 원문은 넣지 않으며 외부로 전송하지 않습니다.</span>
+                  </div>
+                </div>
+                <div className="sec">
+                  <button className="btn danger" onClick={onShutdown}><Power size={14} />M4ML Studio 종료</button>
+                </div>
+              </>
+            )}
           </>
         )}
         {tab === "engines" && (

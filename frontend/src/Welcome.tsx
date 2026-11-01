@@ -21,6 +21,8 @@ import { api, post, stages, titles } from "./api";
 import type { Health, Project } from "./api";
 import { fmt } from "./context";
 import { isDesktop, pickFolder } from "./desktop";
+import { capabilities } from "./platform";
+import { DeleteWorkspace, RecoveryLink } from "./WebSession";
 
 export interface FolderScan {
   path: string;
@@ -460,6 +462,7 @@ export function Welcome({
   onOpen: (p: Project) => void;
   setError: (e: string) => void;
 }) {
+  const cap = capabilities();
   const [scan, setScan] = useState<FolderScan | null>(null),
     [scanning, setScanning] = useState(false),
     [archived, setArchived] = useState(false),
@@ -478,6 +481,18 @@ export function Welcome({
     };
   });
   async function choose(existing = false) {
+    if (!cap.serverFolders) {
+      // Web service: photos are uploaded from the browser into a new project.
+      if (existing) return;
+      setError("");
+      try {
+        const stamp = new Date().toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+        onOpen(await post<Project>("/projects", { name: `새 프로젝트 ${stamp}`, input_mode: "images" }));
+      } catch (e) {
+        setError((e as Error).message);
+      }
+      return;
+    }
     const path = await pickFolder(
       existing
         ? "기존 프로젝트 또는 작업 폴더 열기"
@@ -517,7 +532,7 @@ export function Welcome({
         </div>
         <div className="pname">M4ML Studio</div>
         <div className="ptag">사진으로 3D 모델 만들기</div>
-        <div className="ver">v{health?.version || "—"} · 로컬 GPU 처리</div>
+        <div className="ver">v{health?.version || "—"} · {cap.serverFolders ? "로컬 GPU 처리" : "서버 GPU 처리"}</div>
         <div className="col" style={{ marginTop: 20 }}>
           <button
             className="btn primary l"
@@ -525,10 +540,11 @@ export function Welcome({
             disabled={scanning}
             onClick={() => void choose(false)}
           >
-            <FolderPlus size={16} />새 프로젝트 · 폴더 선택
+            <FolderPlus size={16} />{cap.serverFolders ? "새 프로젝트 · 폴더 선택" : "새 프로젝트"}
             <span className="sp" />
             <span className="kbd">Ctrl+N</span>
           </button>
+          {cap.serverFolders && (
           <button
             className="btn l"
             style={{ justifyContent: "flex-start" }}
@@ -540,6 +556,7 @@ export function Welcome({
             <span className="sp" />
             <span className="kbd">Ctrl+O</span>
           </button>
+          )}
         </div>
         <div className="syscheck">
           <div className="h">
@@ -610,8 +627,9 @@ export function Welcome({
             </span>
           </div>
           <div className="sc">
-            {check(!!health && health.disk_free > 10 * 1024 ** 3, true)}
-            <span className="k">저장 공간</span>
+            {/* web: disk_free is this workspace's remaining quota (10 GB), and a job needs 2 GB */}
+            {check(!!health && health.disk_free > (cap.serverPaths ? 10 : 2) * 1024 ** 3, true)}
+            <span className="k">{cap.serverPaths ? "저장 공간" : "작업 공간 여유"}</span>
             <span>
               {health
                 ? `${Math.floor(health.disk_free / 1024 ** 3)} GB 여유`
@@ -652,8 +670,9 @@ export function Welcome({
           <>
             <h2>시작하기</h2>
             <div className="lead">
-              작업할 폴더를 선택하면 들어 있는 데이터를 자동으로 분석해 이어서
-              할 단계부터 시작합니다.
+              {cap.serverFolders
+                ? "작업할 폴더를 선택하면 들어 있는 데이터를 자동으로 분석해 이어서 할 단계부터 시작합니다."
+                : "새 프로젝트를 만들고 여러 시점에서 찍은 사진을 올리면 카메라 정합부터 진행합니다."}
             </div>
             {opened && (
               <div className="callout ok" style={{ marginTop: 12 }}>
@@ -661,6 +680,19 @@ export function Welcome({
                 <span>{opened.join(" · ")}</span>
               </div>
             )}
+            {!cap.serverFolders ? (
+              <>
+              <div className="start-actions">
+                <button className="start-tile" onClick={() => void choose(false)}>
+                  <FolderPlus size={28} className="acc" />
+                  <b>새 프로젝트</b>
+                  <span>사진 파일이나 사진 폴더를 올려 3D 모델을 만듭니다. 올린 사진과 결과는 이 브라우저의 작업 공간에만 보입니다.</span>
+                </button>
+              </div>
+              <RecoveryLink />
+              <DeleteWorkspace />
+              </>
+            ) : (
             <div className="start-actions">
               <button className="start-tile" onClick={() => void choose(false)}>
                 <FolderPlus size={28} className="acc" />
@@ -680,7 +712,8 @@ export function Welcome({
                 </span>
               </button>
             </div>
-            {!isDesktop() && (
+            )}
+            {!isDesktop() && cap.serverFolders && (
               <p className="hint" style={{ marginTop: 8 }}>
                 <Info size={12} /> 브라우저 개발 모드에서는 폴더 경로를 직접
                 입력합니다. 일반 실행(M4ML Studio 앱)에서는 폴더 선택 창이
@@ -695,12 +728,14 @@ export function Welcome({
                 <Search size={13} />
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="프로젝트 검색" aria-label="프로젝트 검색" />
               </label>
+              {cap.serverFolders && (
               <button
                 className="btn ghost s"
                 onClick={() => setArchived((v) => !v)}
               >
                 {archived ? "최근 프로젝트" : "보관함"}
               </button>
+              )}
             </div>
             {list.length ? (
               <div className="tbl">
@@ -749,7 +784,7 @@ export function Welcome({
                     ? "보관한 프로젝트가 없습니다"
                     : "아직 프로젝트가 없습니다"}
                 </h2>
-                <p>새 프로젝트에서 작업할 폴더를 선택하세요.</p>
+                <p>{cap.serverFolders ? "새 프로젝트에서 작업할 폴더를 선택하세요." : "새 프로젝트를 만들고 사진을 올리세요."}</p>
               </div>
             )}
             <div

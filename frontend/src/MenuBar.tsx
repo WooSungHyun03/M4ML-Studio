@@ -10,14 +10,29 @@ export interface MenuItem {
   hint?: string;
   submenu?: MenuItem[];
   separator?: boolean;
+  /** Not offered on this platform (e.g. server folders in the web service). */
+  hidden?: boolean;
 }
 export interface Menu {
   label: string;
   items: MenuItem[];
 }
 
-function Items({ items, close }: { items: MenuItem[]; close: () => void }) {
+/** Drop hidden items and the separators they would leave doubled or dangling. */
+export function visibleItems(items: MenuItem[]): MenuItem[] {
+  const out: MenuItem[] = [];
+  for (const it of items) {
+    if (it.hidden) continue;
+    if (it.separator && (!out.length || out[out.length - 1].separator)) continue;
+    out.push(it);
+  }
+  while (out.length && out[out.length - 1].separator) out.pop();
+  return out;
+}
+
+function Items({ items: all, close }: { items: MenuItem[]; close: () => void }) {
   const [sub, setSub] = useState<number | null>(null);
+  const items = visibleItems(all);
   return (
     <div className="menu-pop" role="menu">
       {items.map((it, i) =>

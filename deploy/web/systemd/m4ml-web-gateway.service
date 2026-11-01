@@ -1,0 +1,72 @@
+# M4ML Studio Web gateway (staging). Installed by deploy/web/scripts/install.sh (operator, sudo).
+# Listens on 127.0.0.1 only; nothing here opens the service to the internet.
+[Unit]
+Description=M4ML Studio Web gateway
+After=network.target
+ConditionPathExists=/srv/m4ml-web/app/studio_web/app.py
+
+[Service]
+Type=exec
+User=m4ml-web
+Group=m4ml-web
+SupplementaryGroups=video render m4ml-gpu
+WorkingDirectory=/srv/m4ml-web/app
+EnvironmentFile=/etc/m4ml-web/gateway.env
+# Secrets never live in the environment file: systemd hands them over as credentials.
+LoadCredential=turnstile:/etc/m4ml-web/turnstile.secret
+# No --proxy-headers: the gateway itself decides when CF-Connecting-IP may be trusted.
+ExecStart=/srv/m4ml-web/runtime/bin/python -m uvicorn studio_web.app:app --host 127.0.0.1 --port 8800 --no-access-log
+# Stopping the service stops every session backend too (they are in this cgroup): running
+# GPU work is cancelled. Before a planned restart, switch on maintenance mode and wait.
+KillMode=control-group
+TimeoutStopSec=60
+Restart=on-failure
+RestartSec=5
+
+# ---- file system ----------------------------------------------------------------------
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/m4ml-web/data /run/m4ml-gpu
+ReadOnlyPaths=/srv/m4ml-web/app /srv/m4ml-web/runtime /srv/m4ml-web/models
+PrivateTmp=yes
+UMask=0077
+
+# ---- privileges -----------------------------------------------------------------------
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# No ProtectKernelTunables/ProtectKernelLogs/ProtectHostname: they over-mount parts of /proc
+# (ProtectHostname binds /proc/sys/kernel/{hostname,domainname} read-only), and the kernel
+# then refuses the fresh /proc that bwrap gives each session sandbox ("Can't mount proc on
+# /newroot/proc: Operation not permitted"). Without capabilities the service can neither
+# write kernel tunables, read kernel logs nor set the host name anyway; a private /proc per session (other
+# users' processes invisible) is worth more.
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictRealtime=yes
+RestrictNamespaces=user pid ipc uts net mnt cgroup
+SystemCallArchitectures=native
+# Backends talk over UNIX sockets, the tunnel over 127.0.0.1. Outbound HTTPS is needed only
+# for Turnstile's Siteverify; session backends themselves have no network (bwrap).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+# ---- devices: the NVIDIA GPU only ------------------------------------------------------
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+DeviceAllow=/dev/nvidia-modeset rw
+DeviceAllow=char-nvidia-caps r
+
+# ---- resources (T04: up to ~7 GB RSS per training session) ----------------------------
+MemoryMax=40G
+TasksMax=2048
+CPUQuota=1600%
+
+[Install]
+WantedBy=multi-user.target

@@ -14,6 +14,7 @@ from unittest.mock import patch
 from PIL import Image
 from fastapi.testclient import TestClient
 
+import isolation  # noqa: F401  (before studio.api: never open real user data)
 from studio import api
 from studio.doctor import atomic_json
 from studio.importer import import_image, atomic_bytes

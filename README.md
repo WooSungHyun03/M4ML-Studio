@@ -39,6 +39,20 @@ M4ML Studio는 여러 장의 사진으로 객체의 3D 모델을 만드는 Ubunt
 
 제거는 `./scripts/install.sh --uninstall`입니다. 프로젝트와 설정은 지워지지 않습니다. 사용법은 앱의 **도움말** 메뉴에 있습니다.
 
+## 웹 서비스 (M4ML Studio Web)
+
+같은 프로그램을 한 대의 GPU 서버에서 브라우저로 쓰게 하는 서비스입니다. 회원가입 없이 익명 작업 공간을 쓰며, 동시에 쓸 수 있는 작업 공간은 기본 3개(최대 4개)이고 GPU 작업은 한 번에 하나씩 순서대로 실행됩니다. 작업 공간은 만든 날로부터 7일 뒤 자동으로 지워집니다.
+
+- 구성: `studio_web/`(게이트웨이: 익명 세션, 경로 허용 목록, GPU 순서 관리, 업로드 검사), 세션마다 격리된 작업 서버(bubblewrap), `deploy/web/`(systemd 서비스, 터널, 설치 스크립트)
+- 설치(운영자, sudo): 저장소 루트에서 `cd frontend && npm run build` 후
+
+  ```bash
+  sudo M4ML_PUBLIC_HOST=<공개 주소> M4ML_TURNSTILE_SITEKEY=<사이트 키> deploy/web/scripts/install.sh --apply
+  ```
+
+  Turnstile 비밀 키와 Cloudflare 터널 토큰은 `/etc/m4ml-web/turnstile.secret`, `/etc/m4ml-web/tunnel.token`(root 전용)에 넣습니다. 되돌리기는 `deploy/web/scripts/uninstall.sh --apply --rollback`, 운영 절차는 [deploy/web/RUNBOOK.md](deploy/web/RUNBOOK.md)에 있습니다.
+- 개인정보 처리 안내 초안: [deploy/web/PRIVACY_DRAFT.md](deploy/web/PRIVACY_DRAFT.md)
+
 ## 라이선스
 
 비상업적 연구·평가 목적으로만 사용할 수 있습니다. [LICENSE.md](LICENSE.md), [NOTICE](NOTICE), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)를 확인하세요.

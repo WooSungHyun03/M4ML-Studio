@@ -35,7 +35,7 @@ frontend/dist/
 
 # Local release archives (source manifest is generated at packaging time)
 release/
-runtime/
+/runtime/
 .build/
 
 # Supplied design reference and local ImageMagick inspection output (preserved locally).

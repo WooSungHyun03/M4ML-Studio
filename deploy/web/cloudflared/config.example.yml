@@ -1,0 +1,12 @@
+# EXAMPLE ONLY — do not install before the release gates (security, licence, privacy) and
+# the operator's explicit approval. Restricted staging first (Cloudflare Access in front).
+tunnel: <TUNNEL-ID>
+credentials-file: /etc/cloudflared/<TUNNEL-ID>.json
+ingress:
+  - hostname: <public-host>              # also set STUDIO_WEB_HOSTS and STUDIO_WEB_PUBLIC_HOST
+    service: http://127.0.0.1:8800
+    originRequest:
+      httpHostHeader: <public-host>
+      noTLSVerify: false
+  - service: http_status:404             # nothing else is reachable through the tunnel
+# The admin tool (python -m studio_web.admin) has no HTTP endpoint: use it over SSH only.

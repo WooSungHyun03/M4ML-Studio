@@ -5,6 +5,7 @@ import type { Project } from "../api";
 import type { StageCtx } from "../context";
 import { InspectorPortal } from "../dock";
 import { ImportPanel } from "../ImportPanel";
+import { platform } from "../platform";
 
 export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: React.ReactNode) => React.ReactNode }) {
   const { project, base, blocked } = ctx;
@@ -21,9 +22,13 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
   const usable = project.images.filter((i) => !i.duplicate_of).length;
   const warnings = project.images.filter((i) => i.advisories?.length || i.duplicate_of);
 
+  // The web service accepts JPEG and PNG only (validated and metadata-stripped by the gateway).
+  const web = platform() === "web";
+  const formats = web ? "JPG · PNG" : "JPG · PNG · TIFF";
+  const photoPattern = web ? /\.(jpe?g|png)$/i : /\.(jpe?g|png|tiff?)$/i;
   async function upload(files: FileList | File[] | null) {
     if (!files || blocked || locked) return;
-    const list = Array.from(files).filter((f) => /\.(jpe?g|png|tiff?)$/i.test(f.name));
+    const list = Array.from(files).filter((f) => photoPattern.test(f.name));
     const failures: string[] = [];
     ctx.setError("");
     try {
@@ -39,7 +44,7 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
         if (i % 8 === 7) await ctx.refresh();
       }
       if (Array.from(files).length > list.length)
-        failures.push(`${Array.from(files).length - list.length}개 파일은 지원하지 않는 형식이라 건너뛰었습니다 (JPG · PNG · TIFF만 가능).`);
+        failures.push(`${Array.from(files).length - list.length}개 파일은 지원하지 않는 형식이라 건너뛰었습니다 (${formats}만 가능).`);
       await ctx.refresh();
       if (failures.length) ctx.setError(failures.join("\n"));
     } finally {
@@ -160,7 +165,7 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
     <>
       <label className="btn" aria-disabled={blocked || locked}>
         <ImagePlus size={15} />이미지 추가
-        <input type="file" multiple accept="image/jpeg,image/png,image/tiff" hidden disabled={blocked || locked} onChange={(e) => void upload(e.target.files)} />
+        <input type="file" multiple accept={web ? "image/jpeg,image/png" : "image/jpeg,image/png,image/tiff"} hidden disabled={blocked || locked} onChange={(e) => void upload(e.target.files)} />
       </label>
       <label className="btn" aria-disabled={blocked || locked}>
         <FolderPlus size={15} />폴더 가져오기
@@ -207,7 +212,7 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
           >
             <Upload size={40} className="t3" />
             <h2>사진을 불러오세요</h2>
-            <p>객체 주위를 여러 방향에서 찍은 사진을 30장 이상 준비하는 것을 권장합니다. JPG · PNG · TIFF를 지원합니다.</p>
+            <p>객체 주위를 여러 방향에서 찍은 사진을 30장 이상 준비하는 것을 권장합니다. {formats}를 지원합니다.{web && " 사진 한 장은 20MB 이하, 프로젝트당 100장까지입니다."}</p>
             <div className="row">{pickers}</div>
             <p className="hint">또는 이 영역에 파일이나 폴더를 끌어다 놓으세요. 원본 파일은 수정하지 않습니다.</p>
             {uploading && <p role="status" className="acc">{uploading}</p>}
@@ -322,7 +327,7 @@ export function ImagesStage({ ctx, toolbar }: { ctx: StageCtx; toolbar: (node: R
                 ))}
               </div>
               <div className="sec">
-                <div className="callout"><Info size={15} /><span>지원 형식: <b>JPG · PNG · TIFF</b>. EXIF 방향을 바로잡아 저장하며, 원본 파일은 수정하지 않습니다.</span></div>
+                <div className="callout"><Info size={15} /><span>지원 형식: <b>{formats}</b>. {web ? "위치 정보 등 사진 메타데이터는 서버에 저장하기 전에 지우고, 방향만 바로잡아 저장합니다." : "EXIF 방향을 바로잡아 저장하며, 원본 파일은 수정하지 않습니다."}</span></div>
               </div>
             </InspectorPortal>
           )}

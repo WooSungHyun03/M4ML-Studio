@@ -14,6 +14,7 @@ import {
   Scan,
 } from "lucide-react";
 import { LiveError, post, postBlob } from "./api";
+import { platform } from "./platform";
 import { applyFreeView, applyRecordedView, navigationUp, sceneUpFromCameras } from "./viewerCamera";
 
 /** What GET /live-render returns for the project (see studio/api.py). */
@@ -185,8 +186,12 @@ export default function GaussianViewer({
     controls.enableDamping = true;
     controls.dampingFactor = 0.15;
     controls.zoomSpeed = 1.2;
+    const web = platform() === "web";
+    const maxInflight = web ? 2 : 1;
     let alive = true,
-      inflight = false,
+      inflight = 0,
+      requested = 0,
+      shown = 0,
       dirty = true,
       moving = false,
       idleTimer = 0,
@@ -247,7 +252,7 @@ export default function GaussianViewer({
       }
       return [w, h];
     }
-    function body(w: number, h: number, still: boolean) {
+    function body(w: number, h: number, still: boolean, capture = false) {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
@@ -269,8 +274,10 @@ export default function GaussianViewer({
         znear: camera.near,
         zfar: camera.far,
         mode: modeRef.current,
-        encoding: still ? "png" : "jpeg",
-        quality: 85,
+        // Web service: a lossless PNG still frame is several MB over a slow connection; a
+        // high-quality JPEG looks the same at a fraction of the size.
+        encoding: still && (!web || capture) ? "png" : "jpeg", // captures stay lossless
+        quality: still ? 95 : 85,
       };
     }
     async function render(still: boolean) {
@@ -279,9 +286,11 @@ export default function GaussianViewer({
         dpr * setting(display.current, "view", "render_scale", 1),
       );
       const t = performance.now();
+      const mine = ++requested;
       const { blob, headers } = await postBlob(`/projects/${projectId}/live-render/frame`, body(w, h, still));
       const latency = performance.now() - t;
-      if (!alive) return;
+      if (!alive || mine < shown) return; // an older frame arriving after a newer one: drop it
+      shown = mine;
       const next = URL.createObjectURL(blob);
       img.current!.src = next;
       if (url) URL.revokeObjectURL(url);
@@ -299,36 +308,39 @@ export default function GaussianViewer({
       node.dataset.frames = String(Number(node.dataset.frames || 0) + 1);
       node.dataset.lastSize = `${w}x${h}`;
     }
-    async function pump() {
-      if (inflight || !alive || !ready.current) return;
-      inflight = true;
-      try {
-        while (alive && (dirty || (!moving && !stillDone))) {
-          const still = !dirty && !moving;
-          dirty = false;
-          await render(still);
-          if (still) stillDone = true;
-        }
-      } catch (e) {
-        if (alive) {
-          const err = e as LiveError;
-          setMessage(err.message);
-          ready.current = false;
-          setState(
-            (err.state as State) === "out_of_memory"
-              ? "out_of_memory"
-              : err.state === "disconnected"
-                ? "disconnected"
-                : "failed",
-          );
-        }
-      } finally {
-        inflight = false;
+    function failed(e: unknown) {
+      if (!alive) return;
+      const err = e as LiveError;
+      setMessage(err.message);
+      ready.current = false;
+      setState(
+        (err.state as State) === "out_of_memory"
+          ? "out_of_memory"
+          : err.state === "disconnected"
+            ? "disconnected"
+            : "failed",
+      );
+    }
+    // Desktop: one frame at a time (local round trips are ~5 ms). Web: two in flight, so a
+    // network round trip overlaps with rendering; the newest camera always wins.
+    function pump() {
+      while (alive && ready.current && inflight < maxInflight && (dirty || (!moving && !stillDone))) {
+        const still = !dirty && !moving;
+        if (still && inflight > 0) break; // the still frame waits for moving frames to land
+        dirty = false;
+        if (still) stillDone = true;
+        inflight++;
+        render(still)
+          .catch(failed)
+          .finally(() => {
+            inflight--;
+            pump();
+          });
       }
     }
     function kick() {
       stillDone = false;
-      void pump();
+      pump();
     }
     controls.addEventListener("start", () => {
       moving = true;
@@ -389,7 +401,7 @@ export default function GaussianViewer({
           Math.min(window.devicePixelRatio || 1, 2) *
             setting(display.current, "view", "screenshot_scale", 1),
         );
-        const { blob } = await postBlob(`/projects/${projectId}/live-render/frame`, body(w, h, true));
+        const { blob } = await postBlob(`/projects/${projectId}/live-render/frame`, body(w, h, true, true));
         return blob;
       },
     };
